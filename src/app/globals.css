@@ -49,3 +49,7 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+button, a, select, [role="button"] {
+  cursor: pointer;
+}
