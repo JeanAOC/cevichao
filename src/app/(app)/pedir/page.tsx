@@ -16,7 +16,7 @@ export default async function PedirPage() {
   const today = todayDate()
 
   const [{ data: existing }, { data: lockSetting }] = await Promise.all([
-    supabase.from('orders').select('*').eq('user_id', user!.id).eq('order_date', today).maybeSingle() as Promise<{ data: Order | null }>,
+    supabase.from('orders').select('*').eq('user_id', user!.id).eq('order_date', today).maybeSingle() as unknown as Promise<{ data: Order | null }>,
     supabase.from('settings').select('value').eq('key', 'orders_locked').maybeSingle(),
   ])
 

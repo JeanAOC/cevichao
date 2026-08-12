@@ -48,7 +48,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const today = todayDate()
 
   const [{ data: allOrders }, { data: lockSetting }] = await Promise.all([
-    admin.from('orders').select('*, profile:profiles(display_name)').eq('order_date', today).order('created_at', { ascending: true }) as Promise<{ data: Order[] | null }>,
+    admin.from('orders').select('*, profile:profiles(display_name)').eq('order_date', today).order('created_at', { ascending: true }) as unknown as Promise<{ data: Order[] | null }>,
     admin.from('settings').select('value').eq('key', 'orders_locked').maybeSingle(),
   ])
 
