@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface NavbarProps {
@@ -20,6 +21,22 @@ export default function Navbar({ displayName, isAdmin }: NavbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [dark, setDark] = useState(false)
+
+  useEffect(() => {
+    const stored = localStorage.getItem('theme')
+    if (stored === 'dark') setDark(true)
+    else if (stored === 'light') setDark(false)
+    else setDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
+  }, [])
+
+  function toggleTheme() {
+    const next = !dark
+    setDark(next)
+    const val = next ? 'dark' : 'light'
+    localStorage.setItem('theme', val)
+    document.documentElement.setAttribute('data-theme', val)
+  }
 
   async function logout() {
     await supabase.auth.signOut()
@@ -53,7 +70,7 @@ export default function Navbar({ displayName, isAdmin }: NavbarProps) {
             })}
           </nav>
 
-          {/* Right: admin + name + salir */}
+          {/* Right: admin + name + theme + salir */}
           <div className="flex items-center gap-2 ml-auto shrink-0">
             {isAdmin && (
               <Link href="/admin"
@@ -63,6 +80,12 @@ export default function Navbar({ displayName, isAdmin }: NavbarProps) {
               </Link>
             )}
             <span className="text-sm font-medium hidden sm:block">{displayName}</span>
+            <button onClick={toggleTheme}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-base border transition-colors"
+              style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+              title={dark ? 'Modo claro' : 'Modo oscuro'}>
+              {dark ? '☀️' : '🌙'}
+            </button>
             <button onClick={logout}
               className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors"
               style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
