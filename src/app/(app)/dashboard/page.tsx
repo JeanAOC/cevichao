@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Order } from '@/types'
 import { PROTEIN_LABELS, BASE_LABELS, BEBIDA_LABELS, BEBIDA_PRICES } from '@/lib/pricing'
+import CancelOrderButton from '@/components/CancelOrderButton'
 
 export const revalidate = 0
 
@@ -31,18 +32,13 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser()
   const today = todayDate()
 
-  const { data: myOrder } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('user_id', user!.id)
-    .eq('order_date', today)
-    .maybeSingle() as { data: Order | null }
+  const [{ data: myOrder }, { data: allOrders }, { data: lockSetting }] = await Promise.all([
+    supabase.from('orders').select('*').eq('user_id', user!.id).eq('order_date', today).maybeSingle() as unknown as Promise<{ data: Order | null }>,
+    supabase.from('orders').select('*, profile:profiles(display_name)').eq('order_date', today).order('created_at', { ascending: true }) as unknown as Promise<{ data: Order[] | null }>,
+    supabase.from('settings').select('value').eq('key', 'orders_locked').maybeSingle(),
+  ])
 
-  const { data: allOrders } = await supabase
-    .from('orders')
-    .select('*, profile:profiles(display_name)')
-    .eq('order_date', today)
-    .order('created_at', { ascending: true }) as { data: Order[] | null }
+  const isLocked = lockSetting?.value === 'true'
 
   const orders = allOrders ?? []
   const totalPersonas = orders.filter(o => o.protein !== 'no_por_hoy').length
@@ -113,6 +109,7 @@ export default async function HomePage() {
                 {myOrder.comentarios && (
                   <p className="text-sm italic" style={{ color: 'var(--muted)' }}>"{myOrder.comentarios}"</p>
                 )}
+                {!isLocked && <CancelOrderButton />}
               </>
             )}
           </div>

@@ -34,10 +34,10 @@ export default async function PedirPage() {
 
   if (existing) {
     return (
-      <div className="text-center py-20">
-        <div className="text-6xl mb-4">🔒</div>
-        <h1 className="text-xl font-black mb-2">Pedido confirmado</h1>
-        <p style={{ color: 'var(--muted)' }}>Ya hiciste tu pedido de hoy, no se puede cambiar.</p>
+      <div>
+        <h1 className="text-2xl font-black mb-1">Editar pedido</h1>
+        <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>Cambia lo que necesites antes de que se bloquee.</p>
+        <OrderForm existing={existing} userId={user!.id} orderDate={today} />
       </div>
     )
   }
