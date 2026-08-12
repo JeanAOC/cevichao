@@ -118,6 +118,21 @@ export default function LoginPage() {
             >
               {loading ? 'Cargando…' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
             </button>
+
+            {mode === 'login' && (
+              <p className="text-center text-xs" style={{ color: 'var(--muted)' }}>
+                ¿Olvidaste tu contraseña?{' '}
+                <a
+                  href="https://youtu.be/BtLSaxRnIhc?si=6fcn-LSPfHdj3po_"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold underline"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  Haz clic aquí
+                </a>
+              </p>
+            )}
           </form>
         </div>
       </div>
