@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import MarkPaidButton from './MarkPaidButton'
 import FilterBar from './FilterBar'
+import LockButton from './LockButton'
+import DeleteOrderButton from './DeleteOrderButton'
 import type { Order } from '@/types'
 import { PROTEIN_LABELS, BASE_LABELS, BEBIDA_LABELS } from '@/lib/pricing'
 
@@ -44,18 +47,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const admin = createAdminClient()
   const today = todayDate()
 
-  const { data: allOrders } = await admin
-    .from('orders')
-    .select('*, profile:profiles(display_name)')
-    .eq('order_date', today)
-    .order('created_at', { ascending: true }) as { data: Order[] | null }
+  const [{ data: allOrders }, { data: lockSetting }] = await Promise.all([
+    admin.from('orders').select('*, profile:profiles(display_name)').eq('order_date', today).order('created_at', { ascending: true }) as Promise<{ data: Order[] | null }>,
+    admin.from('settings').select('value').eq('key', 'orders_locked').maybeSingle(),
+  ])
 
+  const isLocked = lockSetting?.value === 'true'
   const allOrdersRaw = allOrders ?? []
   const realOrders = allOrdersRaw.filter(o => o.protein !== 'no_por_hoy')
 
   // Aplicar filtros
   const orders = allOrdersRaw.filter(o => {
-    if (o.protein === 'no_por_hoy') return true // siempre mostrar "no pide"
+    if (o.protein === 'no_por_hoy') return true
     if (filters.protein && o.protein !== filters.protein) return false
     if (filters.base && o.base !== filters.base) return false
     if (filters.mani === '1' && !o.extra_mani) return false
@@ -73,13 +76,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const proteinCounts: Record<string, number> = {}
   const baseCounts: Record<string, number> = {}
   const bebidaCounts: Record<string, number> = {}
-  let cntMani = 0, cntGuac = 0, cntSalPrieta = 0, cntManiQ = 0, cntCocolon = 0, cntToston = 0
+  let cntSalPrieta = 0, cntManiQ = 0, cntCocolon = 0, cntToston = 0
 
   for (const o of realOrders) {
     proteinCounts[o.protein] = (proteinCounts[o.protein] ?? 0) + 1
     baseCounts[o.base] = (baseCounts[o.base] ?? 0) + 1
-    if (o.extra_mani) cntMani++
-    if (o.extra_guacamole) cntGuac++
     if (o.extra_sal_prieta) cntSalPrieta++
     if (o.extra_mani_quebrado) cntManiQ++
     if (o.extra_cocolon) cntCocolon++
@@ -96,13 +97,23 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return (
     <div className="min-h-screen pb-8" style={{ background: 'var(--bg)' }}>
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: 'var(--accent)', color: 'white' }}>🔧</div>
-          <div>
-            <h1 className="text-2xl font-black">Admin</h1>
-            <p className="text-sm capitalize" style={{ color: 'var(--muted)' }}>{dateLabel}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: 'var(--accent)', color: 'white' }}>🔧</div>
+            <div>
+              <h1 className="text-2xl font-black">Admin</h1>
+              <p className="text-sm capitalize" style={{ color: 'var(--muted)' }}>{dateLabel}</p>
+            </div>
           </div>
+          <LockButton locked={isLocked} />
         </div>
+
+        {isLocked && (
+          <div className="rounded-2xl px-4 py-3 text-sm font-semibold flex items-center gap-2"
+            style={{ background: 'color-mix(in srgb, var(--danger) 12%, var(--card))', color: 'var(--danger)', border: '1.5px solid color-mix(in srgb, var(--danger) 25%, transparent)' }}>
+            🔒 Los pedidos están bloqueados — nadie puede editar ni crear pedidos
+          </div>
+        )}
 
         {/* Stats dinero */}
         <div className="grid grid-cols-3 gap-3">
@@ -181,12 +192,21 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                           }
                         </div>
                       </div>
-                      {!noFood && (
-                        <div className="flex items-center gap-3">
-                          <span className="font-black text-2xl" style={{ color: 'var(--success)' }}>${Number(o.total).toFixed(2)}</span>
-                          <MarkPaidButton orderId={o.id} paid={o.paid} />
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {!noFood && (
+                          <>
+                            <span className="font-black text-xl" style={{ color: 'var(--success)' }}>${Number(o.total).toFixed(2)}</span>
+                            <MarkPaidButton orderId={o.id} paid={o.paid} />
+                          </>
+                        )}
+                        <Link
+                          href={`/admin/editar/${o.id}`}
+                          className="text-xs px-3 py-1.5 rounded-lg font-bold border"
+                          style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+                          Editar
+                        </Link>
+                        <DeleteOrderButton orderId={o.id} />
+                      </div>
                     </div>
 
                     {!noFood && (

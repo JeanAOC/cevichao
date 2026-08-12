@@ -33,6 +33,7 @@ interface Props {
   existing: Order | null
   userId: string
   orderDate: string
+  adminEdit?: boolean
 }
 
 const AMOUNT_COLORS: Record<SauceAmount, string> = {
@@ -42,7 +43,7 @@ const AMOUNT_COLORS: Record<SauceAmount, string> = {
   mucho: 'bg-red-600 text-white',
 }
 
-export default function OrderForm({ existing, userId, orderDate }: Props) {
+export default function OrderForm({ existing, userId, orderDate, adminEdit }: Props) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -103,17 +104,33 @@ export default function OrderForm({ existing, userId, orderDate }: Props) {
       total,
     }
 
-    const { error: dbError } = existing
-      ? await supabase.from('orders').update(payload).eq('id', existing.id)
-      : await supabase.from('orders').insert(payload)
+    let saveError: string | null = null
+
+    if (adminEdit && existing) {
+      const res = await fetch('/api/admin/update-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: existing.id, payload }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        saveError = data.error ?? 'Error al guardar'
+      }
+    } else {
+      const { error: dbError } = existing
+        ? await supabase.from('orders').update(payload).eq('id', existing.id)
+        : await supabase.from('orders').insert(payload)
+      if (dbError) saveError = dbError.message
+    }
 
     setSaving(false)
-    if (dbError) {
-      setError(dbError.message)
+    if (saveError) {
+      setError(saveError)
       return
     }
     setDone(true)
-    setTimeout(() => { router.push('/dashboard'); router.refresh() }, 1200)
+    const redirect = adminEdit ? '/admin' : '/dashboard'
+    setTimeout(() => { router.push(redirect); router.refresh() }, 1200)
   }
 
   if (done) {

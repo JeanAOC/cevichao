@@ -15,12 +15,22 @@ export default async function PedirPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const today = todayDate()
 
-  const { data: existing } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('user_id', user!.id)
-    .eq('order_date', today)
-    .maybeSingle() as { data: Order | null }
+  const [{ data: existing }, { data: lockSetting }] = await Promise.all([
+    supabase.from('orders').select('*').eq('user_id', user!.id).eq('order_date', today).maybeSingle() as Promise<{ data: Order | null }>,
+    supabase.from('settings').select('value').eq('key', 'orders_locked').maybeSingle(),
+  ])
+
+  const isLocked = lockSetting?.value === 'true'
+
+  if (isLocked) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-6xl mb-4">🔒</div>
+        <h1 className="text-xl font-black mb-2">Pedidos cerrados</h1>
+        <p style={{ color: 'var(--muted)' }}>Ya llegaron al local. No se aceptan más cambios.</p>
+      </div>
+    )
+  }
 
   if (existing) {
     return (
