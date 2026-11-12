@@ -1,115 +1,18 @@
-export type Protein = 'pescado' | 'mixto' | 'camaron' | 'no_por_hoy'
-export type Base = 'chifles' | 'doritos_verdes' | 'jalapeños' | 'patacones' | 'no_gracias'
+import { labelOf, priceOf, type MenuData } from '@/lib/menu'
+
+// Las claves de proteína, base, extra y bebida vienen del menú editable (lib/menu.ts).
+export type Protein = string
+export type Base = string
+export type Bebida = string
 export type SauceAmount = 'no' | 'poco' | 'medio' | 'mucho'
-export type Bebida = 'ninguna' | 'agua' | 'agua_mineral' | 'te_helado' | 'cola' | 'imperial'
 
-export const PROTEIN_PRICES: Record<Protein, number> = {
-  pescado: 2.25,
-  mixto: 2.50,
-  camaron: 2.50,
-  no_por_hoy: 0,
-}
+/** Cantidades por clave: { cola: 2, agua: 1 } */
+export type Counts = Record<string, number>
+export type ExtraCounts = Counts
+export type BebidaCounts = Counts
 
-export const PROTEIN_LABELS: Record<Protein, string> = {
-  pescado: 'Pescado',
-  mixto: 'Mixto',
-  camaron: 'Camarón',
-  no_por_hoy: 'No por hoy',
-}
-
-export const BASE_LABELS: Record<Base, string> = {
-  chifles: 'Chifles',
-  doritos_verdes: 'Doritos Verdes',
-  jalapeños: 'Jalapeños',
-  patacones: 'Patacones',
-  no_gracias: 'No gracias',
-}
-
-export const BASE_PRICES: Record<Base, number> = {
-  chifles: 0,
-  doritos_verdes: 0,
-  jalapeños: 0,
-  patacones: 1.00,
-  no_gracias: 0,
-}
-
-export const EXTRA_PRICES: Record<string, number> = {
-  extra_sal_prieta: 1.00,
-  extra_mani_quebrado: 1.00,
-  extra_cocolon: 1.00,
-  extra_toston: 1.50,
-}
-
-export const EXTRA_LABELS: Record<string, string> = {
-  extra_sal_prieta: 'Salprieta',
-  extra_mani_quebrado: 'Maní Quebrado',
-  extra_cocolon: 'Cocolón',
-  extra_toston: 'Tostón',
-}
-
-// Extras con cantidad: { extra_cocolon: 2, extra_toston: 1 }
-export type ExtraKey = 'extra_sal_prieta' | 'extra_mani_quebrado' | 'extra_cocolon' | 'extra_toston'
-export type ExtraCounts = Partial<Record<ExtraKey, number>>
-export const EXTRA_KEYS: ExtraKey[] = ['extra_sal_prieta', 'extra_mani_quebrado', 'extra_cocolon', 'extra_toston']
 export const MAX_EXTRA_QTY = 10
-
-/**
- * Extras de un pedido como [extra, cantidad]. Lee la columna `extras` (cantidades) y,
- * si está vacía, cae a las columnas booleanas antiguas (cantidad 1).
- */
-export function extrasOf(
-  o: { extras?: ExtraCounts | null } & Partial<Record<ExtraKey, boolean>>,
-): [ExtraKey, number][] {
-  const fromCounts = EXTRA_KEYS
-    .map(k => [k, Number(o.extras?.[k] ?? 0)] as [ExtraKey, number])
-    .filter(([, n]) => n > 0)
-  if (fromCounts.length > 0) return fromCounts
-  return EXTRA_KEYS.filter(k => o[k]).map(k => [k, 1] as [ExtraKey, number])
-}
-
-export const BEBIDA_PRICES: Record<Bebida, number> = {
-  ninguna: 0,
-  agua: 0.50,
-  agua_mineral: 0.75,
-  te_helado: 1.00,
-  cola: 0.50,
-  imperial: 0.75,
-}
-
-export const BEBIDA_LABELS: Record<Bebida, string> = {
-  ninguna: 'Ninguna',
-  agua: 'Agua',
-  agua_mineral: 'Agua Mineral',
-  te_helado: 'Té Helado',
-  cola: 'Cola',
-  imperial: 'Imperial',
-}
-
-export const BEBIDAS: Bebida[] = ['ninguna', 'agua', 'agua_mineral', 'te_helado', 'cola', 'imperial']
-
-// Bebidas con cantidad: { cola: 2, agua: 1 }
-export type BebidaItem = Exclude<Bebida, 'ninguna'>
-export type BebidaCounts = Partial<Record<BebidaItem, number>>
-/** Texto corto de las bebidas de un pedido: "2 × Cola, Agua". Vacío si no hay. */
-export function bebidasLabel(o: { bebidas?: BebidaCounts | null; bebida?: Bebida | null }): string {
-  return bebidasOf(o).map(([k, n]) => (n > 1 ? `${n} × ` : '') + BEBIDA_LABELS[k]).join(', ')
-}
-
-export const BEBIDA_ITEMS: BebidaItem[] = ['agua', 'agua_mineral', 'te_helado', 'cola', 'imperial']
 export const MAX_BEBIDA_QTY = 10
-
-/**
- * Bebidas de un pedido como [bebida, cantidad]. Lee la columna `bebidas` (cantidades) y,
- * si está vacía, cae a la columna antigua `bebida` (una sola, cantidad 1).
- */
-export function bebidasOf(o: { bebidas?: BebidaCounts | null; bebida?: Bebida | null }): [BebidaItem, number][] {
-  const fromCounts = BEBIDA_ITEMS
-    .map(k => [k, Number(o.bebidas?.[k] ?? 0)] as [BebidaItem, number])
-    .filter(([, n]) => n > 0)
-  if (fromCounts.length > 0) return fromCounts
-  if (o.bebida && o.bebida !== 'ninguna') return [[o.bebida, 1]]
-  return []
-}
 
 export const SAUCE_AMOUNTS: SauceAmount[] = ['no', 'poco', 'medio', 'mucho']
 export const SAUCE_AMOUNT_LABELS: Record<SauceAmount, string> = {
@@ -117,6 +20,46 @@ export const SAUCE_AMOUNT_LABELS: Record<SauceAmount, string> = {
   poco: 'Poco',
   medio: 'Medio',
   mucho: 'Mucho',
+}
+
+function entriesOf(counts?: Counts | null): [string, number][] {
+  return Object.entries(counts ?? {})
+    .map(([k, n]) => [k, Number(n)] as [string, number])
+    .filter(([, n]) => Number.isFinite(n) && n > 0)
+}
+
+type LegacyExtras = {
+  extra_sal_prieta?: boolean
+  extra_mani_quebrado?: boolean
+  extra_cocolon?: boolean
+  extra_toston?: boolean
+}
+const LEGACY_EXTRA_KEYS = ['extra_sal_prieta', 'extra_mani_quebrado', 'extra_cocolon', 'extra_toston'] as const
+
+/**
+ * Extras de un pedido como [clave, cantidad]. Lee la columna `extras` (cantidades) y,
+ * si está vacía, cae a las columnas booleanas antiguas (cantidad 1).
+ */
+export function extrasOf(o: { extras?: Counts | null } & LegacyExtras): [string, number][] {
+  const fromCounts = entriesOf(o.extras)
+  if (fromCounts.length > 0) return fromCounts
+  return LEGACY_EXTRA_KEYS.filter(k => o[k]).map(k => [k, 1] as [string, number])
+}
+
+/**
+ * Bebidas de un pedido como [clave, cantidad]. Lee la columna `bebidas` (cantidades) y,
+ * si está vacía, cae a la columna antigua `bebida` (una sola, cantidad 1).
+ */
+export function bebidasOf(o: { bebidas?: Counts | null; bebida?: string | null }): [string, number][] {
+  const fromCounts = entriesOf(o.bebidas)
+  if (fromCounts.length > 0) return fromCounts
+  if (o.bebida && o.bebida !== 'ninguna') return [[o.bebida, 1]]
+  return []
+}
+
+/** Texto corto de las bebidas de un pedido: "2 × Cola, Agua". Vacío si no hay. */
+export function bebidasLabel(menu: MenuData, o: { bebidas?: Counts | null; bebida?: string | null }): string {
+  return bebidasOf(o).map(([k, n]) => (n > 1 ? `${n} × ` : '') + labelOf(menu, 'bebida', k)).join(', ')
 }
 
 export interface OrderInput {
@@ -137,12 +80,14 @@ export interface OrderInput {
   comentarios: string
 }
 
+/** Total del pedido con los precios actuales del menú. */
 export function calculateTotal(
-  order: Pick<OrderInput, 'protein' | 'base' | 'extras' | 'bebidas'>
+  menu: MenuData,
+  order: Pick<OrderInput, 'protein' | 'base' | 'extras' | 'bebidas'>,
 ): number {
   if (order.protein === 'no_por_hoy') return 0
-  let total = PROTEIN_PRICES[order.protein] + BASE_PRICES[order.base]
-  for (const k of EXTRA_KEYS) total += EXTRA_PRICES[k] * (order.extras[k] ?? 0)
-  for (const k of BEBIDA_ITEMS) total += BEBIDA_PRICES[k] * (order.bebidas[k] ?? 0)
-  return total
+  let total = priceOf(menu, 'protein', order.protein) + priceOf(menu, 'base', order.base)
+  for (const [k, n] of entriesOf(order.extras)) total += priceOf(menu, 'extra', k) * n
+  for (const [k, n] of entriesOf(order.bebidas)) total += priceOf(menu, 'bebida', k) * n
+  return Math.round(total * 100) / 100
 }

@@ -3,17 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  PROTEIN_PRICES, PROTEIN_LABELS, BASE_LABELS, BASE_PRICES,
   SAUCE_AMOUNTS, SAUCE_AMOUNT_LABELS,
-  EXTRA_PRICES, EXTRA_LABELS, EXTRA_KEYS, MAX_EXTRA_QTY, extrasOf,
-  BEBIDA_ITEMS, BEBIDA_PRICES, BEBIDA_LABELS, MAX_BEBIDA_QTY, bebidasOf,
+  MAX_EXTRA_QTY, MAX_BEBIDA_QTY, extrasOf, bebidasOf,
   calculateTotal,
-  type Protein, type Base, type SauceAmount, type BebidaItem, type BebidaCounts, type ExtraKey, type ExtraCounts, type OrderInput,
+  type Protein, type Base, type SauceAmount, type BebidaCounts, type ExtraCounts, type OrderInput,
 } from '@/lib/pricing'
+import { findItem, itemsOf, labelOf, priceOf, type MenuData, type MenuItem, type MenuKind } from '@/lib/menu'
 import type { Order } from '@/types'
 
-const PROTEINS: Protein[] = ['pescado', 'mixto', 'camaron']
-const BASES: Base[] = ['chifles', 'doritos_verdes', 'jalapeños', 'patacones']
 const SAUCES: { key: keyof Pick<OrderInput, 'sauce_tomate' | 'sauce_limon' | 'sauce_mostaza' | 'sauce_aji'>; label: string }[] = [
   { key: 'sauce_tomate', label: 'Tomate' },
   { key: 'sauce_limon', label: 'Limón' },
@@ -59,6 +56,7 @@ function QtyRow({ label, price, qty, max, onChange }: {
 
 interface Props {
   existing: Order | null
+  menu: MenuData
   adminEdit?: boolean
 }
 
@@ -69,16 +67,34 @@ const AMOUNT_COLORS: Record<SauceAmount, string> = {
   mucho: 'bg-red-600 text-white',
 }
 
-export default function OrderForm({ existing, adminEdit }: Props) {
+export default function OrderForm({ existing, menu, adminEdit }: Props) {
   const router = useRouter()
 
+  // Los usuarios solo ven items activos del menú; el admin además conserva los ocultos que ya tenga el pedido
+  const usable = (kind: MenuKind, key: string) => {
+    const it = findItem(menu, kind, key)
+    return !!it && (it.active || !!adminEdit)
+  }
+  const optionsFor = (kind: MenuKind, current: string[]): MenuItem[] => {
+    const hidden = current
+      .map(k => findItem(menu, kind, k))
+      .filter((i): i is MenuItem => !!i && !i.active && !!adminEdit)
+    return [...itemsOf(menu, kind), ...hidden]
+  }
+  const keepUsable = (kind: MenuKind, entries: [string, number][]) =>
+    Object.fromEntries(entries.filter(([k]) => usable(kind, k)))
+
   const [step, setStep] = useState(0)
-  const [protein, setProtein] = useState<Protein>(existing && existing.protein !== 'no_por_hoy' ? existing.protein : 'pescado')
-  const [base, setBase] = useState<Base>(existing && existing.base !== 'no_gracias' ? existing.base : 'chifles')
+  const [protein, setProtein] = useState<Protein>(
+    existing && existing.protein !== 'no_por_hoy' && usable('protein', existing.protein)
+      ? existing.protein : (itemsOf(menu, 'protein')[0]?.key ?? ''))
+  const [base, setBase] = useState<Base>(
+    existing && existing.base !== 'no_gracias' && usable('base', existing.base)
+      ? existing.base : (itemsOf(menu, 'base')[0]?.key ?? ''))
   const [extraMani, setExtraMani] = useState(existing?.extra_mani ?? false)
   const [extraGuacamole, setExtraGuacamole] = useState(existing?.extra_guacamole ?? false)
-  const [extras, setExtras] = useState<ExtraCounts>(() => existing ? Object.fromEntries(extrasOf(existing)) : {})
-  const [bebidas, setBebidas] = useState<BebidaCounts>(() => existing ? Object.fromEntries(bebidasOf(existing)) : {})
+  const [extras, setExtras] = useState<ExtraCounts>(() => existing ? keepUsable('extra', extrasOf(existing)) : {})
+  const [bebidas, setBebidas] = useState<BebidaCounts>(() => existing ? keepUsable('bebida', bebidasOf(existing)) : {})
   const [sauces, setSauces] = useState<Record<string, SauceAmount>>({
     sauce_tomate: existing?.sauce_tomate ?? 'no',
     sauce_limon: existing?.sauce_limon ?? 'no',
@@ -91,18 +107,27 @@ export default function OrderForm({ existing, adminEdit }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const noFood = protein === 'no_por_hoy'
-  const total = calculateTotal({ protein, base, extras, bebidas })
-  const totalExtras = EXTRA_KEYS.reduce((s, k) => s + (extras[k] ?? 0), 0)
-  const extrasSubtotal = EXTRA_KEYS.reduce((s, k) => s + EXTRA_PRICES[k] * (extras[k] ?? 0), 0)
-  const totalBebidas = BEBIDA_ITEMS.reduce((s, b) => s + (bebidas[b] ?? 0), 0)
-  const bebidasSubtotal = BEBIDA_ITEMS.reduce((s, b) => s + BEBIDA_PRICES[b] * (bebidas[b] ?? 0), 0)
+  const total = calculateTotal(menu, { protein, base, extras, bebidas })
 
-  function setBebidaQty(b: BebidaItem, qty: number) {
+  const proteinOptions = optionsFor('protein', [protein])
+  const baseOptions = optionsFor('base', [base])
+  const extraOptions = optionsFor('extra', Object.keys(extras))
+  const bebidaOptions = optionsFor('bebida', Object.keys(bebidas))
+
+  const sum = (counts: Record<string, number>) => Object.values(counts).reduce((s, n) => s + n, 0)
+  const subtotal = (kind: MenuKind, counts: Record<string, number>) =>
+    Object.entries(counts).reduce((s, [k, n]) => s + priceOf(menu, kind, k) * n, 0)
+  const totalExtras = sum(extras)
+  const extrasSubtotal = subtotal('extra', extras)
+  const totalBebidas = sum(bebidas)
+  const bebidasSubtotal = subtotal('bebida', bebidas)
+
+  function setBebidaQty(b: string, qty: number) {
     const q = Math.max(0, Math.min(MAX_BEBIDA_QTY, qty))
     setBebidas(prev => ({ ...prev, [b]: q }))
   }
 
-  function setExtraQty(k: ExtraKey, qty: number) {
+  function setExtraQty(k: string, qty: number) {
     const q = Math.max(0, Math.min(MAX_EXTRA_QTY, qty))
     setExtras(prev => ({ ...prev, [k]: q }))
   }
@@ -181,15 +206,15 @@ export default function OrderForm({ existing, adminEdit }: Props) {
       {step === 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-bold">¿Qué proteína quieres?</h2>
-          {PROTEINS.map(p => (
-            <button key={p} onClick={() => setProtein(p)}
+          {proteinOptions.map(p => (
+            <button key={p.key} onClick={() => setProtein(p.key)}
               className="w-full flex items-center justify-between px-5 py-4 rounded-2xl border-2 transition-all font-semibold"
-              style={protein === p
+              style={protein === p.key
                 ? { borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 8%, transparent)', color: 'var(--primary)' }
                 : { borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--text)' }}>
-              <span className="text-base">{PROTEIN_LABELS[p]}</span>
-              {PROTEIN_PRICES[p] > 0
-                ? <span className="text-xl font-black" style={{ color: protein === p ? 'var(--primary)' : 'var(--success)' }}>${PROTEIN_PRICES[p].toFixed(2)}</span>
+              <span className="text-base">{p.label}</span>
+              {p.price > 0
+                ? <span className="text-xl font-black" style={{ color: protein === p.key ? 'var(--primary)' : 'var(--success)' }}>${p.price.toFixed(2)}</span>
                 : <span className="text-sm" style={{ color: 'var(--muted)' }}>—</span>
               }
             </button>
@@ -244,15 +269,15 @@ export default function OrderForm({ existing, adminEdit }: Props) {
       {step === 2 && (
         <div className="space-y-3">
           <h2 className="text-lg font-bold">¿Con qué base?</h2>
-          {BASES.map(b => (
-            <button key={b} onClick={() => setBase(b)}
+          {baseOptions.map(b => (
+            <button key={b.key} onClick={() => setBase(b.key)}
               className="w-full flex items-center justify-between px-5 py-4 rounded-2xl border-2 transition-all font-semibold text-left"
-              style={base === b
+              style={base === b.key
                 ? { borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 8%, transparent)', color: 'var(--primary)' }
                 : { borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--text)' }}>
-              <span>{BASE_LABELS[b]}</span>
-              {BASE_PRICES[b] > 0 && (
-                <span className="font-black" style={{ color: base === b ? 'var(--primary)' : 'var(--success)' }}>+${BASE_PRICES[b].toFixed(2)}</span>
+              <span>{b.label}</span>
+              {b.price > 0 && (
+                <span className="font-black" style={{ color: base === b.key ? 'var(--primary)' : 'var(--success)' }}>+${b.price.toFixed(2)}</span>
               )}
             </button>
           ))}
@@ -270,9 +295,12 @@ export default function OrderForm({ existing, adminEdit }: Props) {
             <h2 className="text-lg font-bold">¿Extras?</h2>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>Elige cuántos quieres de cada uno. Si no quieres, sigue.</p>
           </div>
-          {EXTRA_KEYS.map(k => (
-            <QtyRow key={k} label={EXTRA_LABELS[k]} price={EXTRA_PRICES[k]}
-              qty={extras[k] ?? 0} max={MAX_EXTRA_QTY} onChange={q => setExtraQty(k, q)} />
+          {extraOptions.length === 0 && (
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--muted)' }}>Hoy no hay extras disponibles.</p>
+          )}
+          {extraOptions.map(x => (
+            <QtyRow key={x.key} label={x.label} price={x.price}
+              qty={extras[x.key] ?? 0} max={MAX_EXTRA_QTY} onChange={q => setExtraQty(x.key, q)} />
           ))}
           {totalExtras > 0 && (
             <p className="text-right text-sm font-bold" style={{ color: 'var(--muted)' }}>
@@ -293,9 +321,12 @@ export default function OrderForm({ existing, adminEdit }: Props) {
             <h2 className="text-lg font-bold">¿Bebidas?</h2>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>Puedes elegir varias. Si no quieres, sigue.</p>
           </div>
-          {BEBIDA_ITEMS.map(b => (
-            <QtyRow key={b} label={BEBIDA_LABELS[b]} price={BEBIDA_PRICES[b]}
-              qty={bebidas[b] ?? 0} max={MAX_BEBIDA_QTY} onChange={q => setBebidaQty(b, q)} />
+          {bebidaOptions.length === 0 && (
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--muted)' }}>Hoy no hay bebidas disponibles.</p>
+          )}
+          {bebidaOptions.map(b => (
+            <QtyRow key={b.key} label={b.label} price={b.price}
+              qty={bebidas[b.key] ?? 0} max={MAX_BEBIDA_QTY} onChange={q => setBebidaQty(b.key, q)} />
           ))}
           {totalBebidas > 0 && (
             <p className="text-right text-sm font-bold" style={{ color: 'var(--muted)' }}>
@@ -354,18 +385,18 @@ export default function OrderForm({ existing, adminEdit }: Props) {
           <div className="rounded-2xl p-4 border" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
             <h3 className="font-bold text-sm mb-2" style={{ color: 'var(--muted)' }}>RESUMEN</h3>
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between"><span>{PROTEIN_LABELS[protein]}</span><span>${PROTEIN_PRICES[protein].toFixed(2)}</span></div>
-              {BASE_PRICES[base] > 0 && <div className="flex justify-between" style={{ color: 'var(--muted)' }}><span>+ {BASE_LABELS[base]}</span><span>${BASE_PRICES[base].toFixed(2)}</span></div>}
+              <div className="flex justify-between"><span>{labelOf(menu, 'protein', protein)}</span><span>${priceOf(menu, 'protein', protein).toFixed(2)}</span></div>
+              {priceOf(menu, 'base', base) > 0 && <div className="flex justify-between" style={{ color: 'var(--muted)' }}><span>+ {labelOf(menu, 'base', base)}</span><span>${priceOf(menu, 'base', base).toFixed(2)}</span></div>}
               {extraMani && <div className="flex justify-between" style={{ color: 'var(--muted)' }}><span>+ Maní</span><span>gratis</span></div>}
               {extraGuacamole && <div className="flex justify-between" style={{ color: 'var(--muted)' }}><span>+ Guacamole</span><span>gratis</span></div>}
-              {EXTRA_KEYS.filter(k => (extras[k] ?? 0) > 0).map(k => (
+              {Object.entries(extras).filter(([, n]) => n > 0).map(([k, n]) => (
                 <div key={k} className="flex justify-between" style={{ color: 'var(--muted)' }}>
-                  <span>+ {extras[k]} × {EXTRA_LABELS[k]}</span><span>${(EXTRA_PRICES[k] * (extras[k] ?? 0)).toFixed(2)}</span>
+                  <span>+ {n} × {labelOf(menu, 'extra', k)}</span><span>${(priceOf(menu, 'extra', k) * n).toFixed(2)}</span>
                 </div>
               ))}
-              {BEBIDA_ITEMS.filter(b => (bebidas[b] ?? 0) > 0).map(b => (
-                <div key={b} className="flex justify-between" style={{ color: 'var(--muted)' }}>
-                  <span>+ {bebidas[b]} × {BEBIDA_LABELS[b]}</span><span>${(BEBIDA_PRICES[b] * (bebidas[b] ?? 0)).toFixed(2)}</span>
+              {Object.entries(bebidas).filter(([, n]) => n > 0).map(([k, n]) => (
+                <div key={k} className="flex justify-between" style={{ color: 'var(--muted)' }}>
+                  <span>+ {n} × {labelOf(menu, 'bebida', k)}</span><span>${(priceOf(menu, 'bebida', k) * n).toFixed(2)}</span>
                 </div>
               ))}
               <div className="border-t pt-2 mt-2 flex justify-between font-black text-lg" style={{ borderColor: 'var(--border)', color: 'var(--success)' }}>

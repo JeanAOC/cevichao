@@ -1,9 +1,9 @@
 import {
-  BASE_LABELS, BEBIDA_ITEMS, EXTRA_KEYS, MAX_BEBIDA_QTY, MAX_EXTRA_QTY, PROTEIN_PRICES, SAUCE_AMOUNT_LABELS,
+  MAX_BEBIDA_QTY, MAX_EXTRA_QTY, SAUCE_AMOUNT_LABELS,
   bebidasOf, calculateTotal,
-  type Base, type Bebida, type BebidaCounts, type ExtraCounts, type OrderInput, type Protein, type SauceAmount,
+  type Counts, type OrderInput, type SauceAmount,
 } from '@/lib/pricing'
-
+import { findItem, type MenuData, type MenuKind } from '@/lib/menu'
 import type { Order } from '@/types'
 
 export type OrderFilters = Record<string, string | undefined>
@@ -46,44 +46,57 @@ export function availableFilters(orders: Order[]): Record<string, string[]> {
 
 const bool = (v: unknown) => v === true
 
-function pick<T extends string>(v: unknown, allowed: Record<T, unknown>): T | null {
-  return typeof v === 'string' && Object.prototype.hasOwnProperty.call(allowed, v) ? (v as T) : null
+const LEVELS = Object.keys(SAUCE_AMOUNT_LABELS) as SauceAmount[]
+const sauce = (v: unknown): SauceAmount | null =>
+  typeof v === 'string' && (LEVELS as string[]).includes(v) ? (v as SauceAmount) : null
+
+interface SanitizeOptions {
+  /** El admin puede guardar items ocultos (para editar pedidos viejos). Los usuarios, solo los activos. */
+  allowInactive?: boolean
 }
 
 /**
- * Valida el payload recibido del cliente, descarta campos desconocidos
- * y recalcula el total en el servidor. Devuelve null si es inválido.
+ * Valida el payload recibido del cliente contra el menú actual, descarta campos desconocidos
+ * y recalcula el total en el servidor con los precios del menú. Devuelve null si es inválido.
  */
-export function sanitizeOrder(raw: unknown): (OrderInput & { bebida: Bebida; total: number }) | null {
+export function sanitizeOrder(
+  raw: unknown,
+  menu: MenuData,
+  { allowInactive = false }: SanitizeOptions = {},
+): (OrderInput & { bebida: string; total: number }) | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
 
-  const protein = pick<Protein>(r.protein, PROTEIN_PRICES)
-  const base = pick<Base>(r.base, BASE_LABELS)
-  const sauces = (['sauce_tomate', 'sauce_limon', 'sauce_mostaza', 'sauce_aji'] as const).map(
-    k => pick<SauceAmount>(r[k], SAUCE_AMOUNT_LABELS),
-  )
-  if (!protein || !base || sauces.some(s => !s)) return null
+  const valid = (kind: MenuKind, key: unknown) => {
+    if (typeof key !== 'string') return false
+    const item = findItem(menu, kind, key)
+    return !!item && (allowInactive || item.active)
+  }
+
+  const protein = r.protein
+  const base = r.base
+  const sauces = (['sauce_tomate', 'sauce_limon', 'sauce_mostaza', 'sauce_aji'] as const).map(k => sauce(r[k]))
+  if (!valid('protein', protein) || !valid('base', base) || sauces.some(s => !s)) return null
 
   const noFood = protein === 'no_por_hoy'
 
-  // Cantidades: solo claves conocidas, enteros entre 1 y el máximo
-  const counts = <K extends string>(raw: unknown, keys: K[], max: number): Partial<Record<K, number>> => {
-    const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
-    const out: Partial<Record<K, number>> = {}
+  // Cantidades: solo claves del menú, enteros entre 1 y el máximo
+  const counts = (rawCounts: unknown, kind: MenuKind, max: number): Counts => {
+    const src = rawCounts && typeof rawCounts === 'object' ? (rawCounts as Record<string, unknown>) : {}
+    const out: Counts = {}
     if (noFood) return out
-    for (const k of keys) {
-      const n = Number(src[k])
-      if (Number.isInteger(n) && n > 0) out[k] = Math.min(n, max)
+    for (const [k, v] of Object.entries(src)) {
+      const n = Number(v)
+      if (valid(kind, k) && Number.isInteger(n) && n > 0) out[k] = Math.min(n, max)
     }
     return out
   }
-  const bebidas: BebidaCounts = counts(r.bebidas, BEBIDA_ITEMS, MAX_BEBIDA_QTY)
-  const extras: ExtraCounts = counts(r.extras, EXTRA_KEYS, MAX_EXTRA_QTY)
+  const bebidas = counts(r.bebidas, 'bebida', MAX_BEBIDA_QTY)
+  const extras = counts(r.extras, 'extra', MAX_EXTRA_QTY)
 
   const order: OrderInput = {
-    protein,
-    base: noFood ? 'no_gracias' : base,
+    protein: protein as string,
+    base: noFood ? 'no_gracias' : (base as string),
     extra_mani: !noFood && bool(r.extra_mani),
     extra_guacamole: !noFood && bool(r.extra_guacamole),
     // Booleanos antiguos: derivados de las cantidades
@@ -100,6 +113,6 @@ export function sanitizeOrder(raw: unknown): (OrderInput & { bebida: Bebida; tot
     comentarios: noFood || typeof r.comentarios !== 'string' ? '' : r.comentarios.slice(0, 500),
   }
   // `bebida` (columna antigua, un solo valor): la primera bebida elegida, o 'ninguna'
-  const bebida: Bebida = BEBIDA_ITEMS.find(k => bebidas[k]) ?? 'ninguna'
-  return { ...order, bebida, total: calculateTotal(order) }
+  const bebida = Object.keys(bebidas)[0] ?? 'ninguna'
+  return { ...order, bebida, total: calculateTotal(menu, order) }
 }

@@ -1,18 +1,8 @@
-import {
-  PROTEIN_PRICES, PROTEIN_LABELS,
-  BASE_LABELS, BASE_PRICES,
-  EXTRA_PRICES, EXTRA_LABELS,
-  BEBIDAS, BEBIDA_PRICES, BEBIDA_LABELS,
-  SAUCE_AMOUNTS, SAUCE_AMOUNT_LABELS,
-  type Protein, type Base,
-} from '@/lib/pricing'
+import { SAUCE_AMOUNTS, SAUCE_AMOUNT_LABELS } from '@/lib/pricing'
+import { itemsOf, money, type MenuData } from '@/lib/menu'
 
-const PROTEINS = (Object.keys(PROTEIN_PRICES) as Protein[]).filter(p => PROTEIN_PRICES[p] > 0)
-const BASES = (Object.keys(BASE_LABELS) as Base[]).filter(b => b !== 'no_gracias')
 const SAUCES = ['Tomate', 'Limón', 'Mostaza', 'Ají']
 const FREE_EXTRAS = ['Maní', 'Guacamole']
-
-const money = (n: number) => `$${n.toFixed(2)}`
 
 function Section({ step, title, note, children }: { step?: string; title: string; note?: string; children: React.ReactNode }) {
   return (
@@ -41,19 +31,24 @@ function PriceRow({ label, price }: { label: string; price?: number }) {
   )
 }
 
-export default function Menu() {
+export default function Menu({ menu }: { menu: MenuData }) {
+  const bases = itemsOf(menu, 'base')
+  const proteins = itemsOf(menu, 'protein')
+  const extras = itemsOf(menu, 'extra')
+  const bebidas = itemsOf(menu, 'bebida')
+
   return (
     <div className="space-y-4">
       <div className="grid md:grid-cols-2 gap-4">
         <Section step="Paso 1" title="Base">
           <ul>
-            {BASES.map(b => <PriceRow key={b} label={BASE_LABELS[b]} price={BASE_PRICES[b] > 0 ? BASE_PRICES[b] : undefined} />)}
+            {bases.map(b => <PriceRow key={b.key} label={b.label} price={b.price > 0 ? b.price : undefined} />)}
           </ul>
         </Section>
 
         <Section step="Paso 2" title="Proteínas">
           <ul>
-            {PROTEINS.map(p => <PriceRow key={p} label={PROTEIN_LABELS[p]} price={PROTEIN_PRICES[p]} />)}
+            {proteins.map(p => <PriceRow key={p.key} label={p.label} price={p.price} />)}
           </ul>
         </Section>
 
@@ -70,18 +65,22 @@ export default function Menu() {
           </div>
         </Section>
 
-        <Section title="Extras">
-          <ul>
-            {Object.keys(EXTRA_PRICES).map(k => <PriceRow key={k} label={EXTRA_LABELS[k]} price={EXTRA_PRICES[k]} />)}
-          </ul>
-        </Section>
+        {extras.length > 0 && (
+          <Section title="Extras">
+            <ul>
+              {extras.map(x => <PriceRow key={x.key} label={x.label} price={x.price} />)}
+            </ul>
+          </Section>
+        )}
       </div>
 
-      <Section title="Bebidas">
-        <ul className="grid sm:grid-cols-2 sm:gap-x-8">
-          {BEBIDAS.filter(b => BEBIDA_PRICES[b] > 0).map(b => <PriceRow key={b} label={BEBIDA_LABELS[b]} price={BEBIDA_PRICES[b]} />)}
-        </ul>
-      </Section>
+      {bebidas.length > 0 && (
+        <Section title="Bebidas">
+          <ul className="grid sm:grid-cols-2 sm:gap-x-8">
+            {bebidas.map(b => <PriceRow key={b.key} label={b.label} price={b.price} />)}
+          </ul>
+        </Section>
+      )}
     </div>
   )
 }

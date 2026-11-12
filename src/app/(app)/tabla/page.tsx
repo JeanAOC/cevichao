@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Order } from '@/types'
-import {
-  PROTEIN_LABELS, BASE_LABELS, BEBIDA_LABELS, EXTRA_LABELS, EXTRA_KEYS, extrasOf, bebidasOf, bebidasLabel,
-  type Protein, type Base, type Bebida,
-} from '@/lib/pricing'
+import { extrasOf, bebidasOf, bebidasLabel } from '@/lib/pricing'
+import { itemsOf, labelOf, labelMap, type MenuData } from '@/lib/menu'
+import { loadMenu } from '@/lib/menu-server'
 import { todayDate } from '@/lib/date'
 import { filterOrders, availableFilters, type OrderFilters } from '@/lib/orders'
 import FilterBar from '@/components/FilterBar'
@@ -30,13 +29,13 @@ function SauceChips({ o }: { o: Order }) {
   )
 }
 
-function ExtraChips({ o }: { o: Order }) {
+function ExtraChips({ o, menu }: { o: Order; menu: MenuData }) {
   const extras = extrasOf(o)
   if (extras.length === 0) return <span style={{ color: 'var(--muted)' }}>—</span>
   return (
     <div className="flex flex-wrap gap-1">
       {extras.map(([k, n]) => (
-        <span key={k} className="chip chip-info">+{n > 1 ? `${n} × ` : ''}{EXTRA_LABELS[k]}</span>
+        <span key={k} className="chip chip-info">+{n > 1 ? `${n} × ` : ''}{labelOf(menu, 'extra', k)}</span>
       ))}
     </div>
   )
@@ -65,8 +64,8 @@ function Summary({ title, items, color }: { title: string; items: [string, numbe
   )
 }
 
-function countBy<T extends string>(orders: Order[], pick: (o: Order) => T | null, labels: Record<T, string>): [string, number][] {
-  const counts = new Map<T, number>()
+function countBy(orders: Order[], pick: (o: Order) => string | null, labels: Record<string, string>): [string, number][] {
+  const counts = new Map<string, number>()
   for (const o of orders) {
     const k = pick(o)
     if (k) counts.set(k, (counts.get(k) ?? 0) + 1)
@@ -76,6 +75,7 @@ function countBy<T extends string>(orders: Order[], pick: (o: Order) => T | null
 
 export default async function TablaPage({ searchParams }: { searchParams: Promise<OrderFilters> }) {
   const filters = await searchParams
+  const menu = await loadMenu()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const today = todayDate()
@@ -98,9 +98,9 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
 
   // Descripción legible de los filtros activos, ej. "Pescado · con Chifles · sin Maní"
   const filterParts: string[] = []
-  if (filters.protein) filterParts.push(PROTEIN_LABELS[filters.protein as Protein] ?? filters.protein)
-  if (filters.base) filterParts.push(`con ${BASE_LABELS[filters.base as Base] ?? filters.base}`)
-  if (filters.bebida) filterParts.push(`con ${BEBIDA_LABELS[filters.bebida as Bebida] ?? filters.bebida}`)
+  if (filters.protein) filterParts.push(labelOf(menu, 'protein', filters.protein))
+  if (filters.base) filterParts.push(`con ${labelOf(menu, 'base', filters.base)}`)
+  if (filters.bebida) filterParts.push(`con ${labelOf(menu, 'bebida', filters.bebida)}`)
   if (filters.mani === '1') filterParts.push('con Maní')
   if (filters.mani === '0') filterParts.push('sin Maní')
   if (filters.guac === '1') filterParts.push('con Guacamole')
@@ -109,10 +109,10 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
   const extrasItems: [string, number][] = [
     ['Maní', realOrders.filter(o => o.extra_mani).length],
     ['Guacamole', realOrders.filter(o => o.extra_guacamole).length],
-    // Unidades de cada extra de pago (2 cocolones de una persona cuentan 2)
-    ...EXTRA_KEYS.map(k => [
-      EXTRA_LABELS[k],
-      realOrders.reduce((s, o) => s + (extrasOf(o).find(([x]) => x === k)?.[1] ?? 0), 0),
+    // Unidades de cada extra de pago (2 cocolones de una persona cuentan 2); incluye extras ocultos con pedidos
+    ...itemsOf(menu, 'extra', false).map(x => [
+      x.label,
+      realOrders.reduce((s, o) => s + (extrasOf(o).find(([k]) => k === x.key)?.[1] ?? 0), 0),
     ] as [string, number]),
   ]
   // Total de unidades por bebida (2 colas de una persona cuentan 2)
@@ -120,7 +120,7 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
   for (const o of realOrders) for (const [k, n] of bebidasOf(o)) bebidaTotals.set(k, (bebidaTotals.get(k) ?? 0) + n)
   const bebidaItems: [string, number][] = [...bebidaTotals.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([k, n]) => [BEBIDA_LABELS[k as Bebida] ?? k, n])
+    .map(([k, n]) => [labelOf(menu, 'bebida', k), n])
 
   const rawLabel = new Date(today + 'T12:00:00').toLocaleDateString('es-EC', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -148,15 +148,15 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
           {realOrders.length > 0 && (
             <div className="grid sm:grid-cols-2 gap-3">
               <Summary title="PROTEÍNAS" color="var(--primary)"
-                items={countBy<Protein>(realOrders, o => o.protein, PROTEIN_LABELS)} />
+                items={countBy(realOrders, o => o.protein, labelMap(menu, 'protein'))} />
               <Summary title="BASES" color="var(--accent)"
-                items={countBy<Base>(realOrders, o => o.base, BASE_LABELS)} />
+                items={countBy(realOrders, o => o.base, labelMap(menu, 'base'))} />
               <Summary title="EXTRAS" color="var(--success)" items={extrasItems.filter(([, n]) => n > 0)} />
               <Summary title="BEBIDAS" color="var(--primary)" items={bebidaItems} />
             </div>
           )}
 
-          <FilterBar available={availableFilters(all)} />
+          <FilterBar menu={menu} available={availableFilters(all)} />
 
           {/* Resultado: número grande + qué se está contando */}
           <div className="rounded-2xl border px-5 py-4 flex items-center gap-4"
@@ -199,15 +199,15 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
                       {!noFood && (
                         <>
                           <div className="text-sm">
-                            <span className="font-semibold" style={{ color: 'var(--primary)' }}>{PROTEIN_LABELS[o.protein]}</span>
-                            <span style={{ color: 'var(--muted)' }}> · {BASE_LABELS[o.base]}</span>
+                            <span className="font-semibold" style={{ color: 'var(--primary)' }}>{labelOf(menu, 'protein', o.protein)}</span>
+                            <span style={{ color: 'var(--muted)' }}> · {labelOf(menu, 'base', o.base)}</span>
                           </div>
                           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
                             {o.extra_mani && <span className="font-medium" style={{ color: 'var(--success)' }}>Maní ✓</span>}
                             {o.extra_guacamole && <span className="font-medium" style={{ color: 'var(--success)' }}>Guacamole ✓</span>}
-                            {bebidasLabel(o) && <span style={{ color: 'var(--muted)' }}>🥤 {bebidasLabel(o)}</span>}
+                            {bebidasLabel(menu, o) && <span style={{ color: 'var(--muted)' }}>🥤 {bebidasLabel(menu, o)}</span>}
                           </div>
-                          <ExtraChips o={o} />
+                          <ExtraChips o={o} menu={menu} />
                           <SauceChips o={o} />
                           {o.comentarios && <p className="text-xs italic" style={{ color: 'var(--muted)' }}>&quot;{o.comentarios}&quot;</p>}
                           <p className="text-right font-black" style={{ color: 'var(--success)' }}>${Number(o.total).toFixed(2)}</p>
@@ -258,13 +258,13 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
                               <td className="px-3 py-3" colSpan={7} style={{ color: 'var(--muted)' }}>No pide hoy</td>
                             ) : (
                               <>
-                                <td className="px-3 py-3 whitespace-nowrap font-semibold" style={{ color: 'var(--primary)' }}>{PROTEIN_LABELS[o.protein]}</td>
-                                <td className="px-3 py-3 whitespace-nowrap" style={{ color: 'var(--muted)' }}>{BASE_LABELS[o.base]}</td>
+                                <td className="px-3 py-3 whitespace-nowrap font-semibold" style={{ color: 'var(--primary)' }}>{labelOf(menu, 'protein', o.protein)}</td>
+                                <td className="px-3 py-3 whitespace-nowrap" style={{ color: 'var(--muted)' }}>{labelOf(menu, 'base', o.base)}</td>
                                 <td className="px-3 py-3 text-center"><YesNo on={o.extra_mani} /></td>
                                 <td className="px-3 py-3 text-center"><YesNo on={o.extra_guacamole} /></td>
-                                <td className="px-3 py-3"><ExtraChips o={o} /></td>
+                                <td className="px-3 py-3"><ExtraChips o={o} menu={menu} /></td>
                                 <td className="px-3 py-3 whitespace-nowrap" style={{ color: 'var(--muted)' }}>
-                                  {bebidasLabel(o) || '—'}
+                                  {bebidasLabel(menu, o) || '—'}
                                 </td>
                                 <td className="px-3 py-3"><SauceChips o={o} /></td>
                               </>

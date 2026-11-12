@@ -89,7 +89,7 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
         {staff.isAdmin && (
           <Link href="/admin" className="text-xs font-bold px-3 py-2 rounded-lg border shrink-0"
             style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
-            Editar pedidos →
+            Administrar menú →
           </Link>
         )}
       </div>

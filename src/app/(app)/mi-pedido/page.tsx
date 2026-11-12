@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Order } from '@/types'
-import { PROTEIN_LABELS, BASE_LABELS, BEBIDA_LABELS, BEBIDA_PRICES, EXTRA_LABELS, EXTRA_PRICES, extrasOf, bebidasOf } from '@/lib/pricing'
+import { extrasOf, bebidasOf } from '@/lib/pricing'
+import { labelOf } from '@/lib/menu'
+import { loadMenu } from '@/lib/menu-server'
 import CancelOrderButton from '@/components/CancelOrderButton'
 import PaymentAccountView from '@/components/PaymentAccountView'
 import { todayDate } from '@/lib/date'
@@ -19,6 +21,7 @@ function SauceTag({ label, amount }: { label: string; amount: string }) {
 
 export default async function MiPedidoPage() {
   const supabase = await createClient()
+  const menu = await loadMenu()
   const { data: { user } } = await supabase.auth.getUser()
   const today = todayDate()
 
@@ -64,8 +67,8 @@ export default async function MiPedidoPage() {
               <>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xl font-black">{PROTEIN_LABELS[myOrder.protein]}</p>
-                    <p className="text-sm" style={{ color: 'var(--muted)' }}>{BASE_LABELS[myOrder.base]}</p>
+                    <p className="text-xl font-black">{labelOf(menu, 'protein', myOrder.protein)}</p>
+                    <p className="text-sm" style={{ color: 'var(--muted)' }}>{labelOf(menu, 'base', myOrder.base)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-black" style={{ color: 'var(--success)' }}>${Number(myOrder.total).toFixed(2)}</p>
@@ -84,7 +87,7 @@ export default async function MiPedidoPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {extrasOf(myOrder).map(([k, n]) => (
                       <span key={k} className="chip chip-info">
-                        +{n > 1 ? `${n} × ` : ''}{EXTRA_LABELS[k]} ${(EXTRA_PRICES[k] * n).toFixed(2)}
+                        +{n > 1 ? `${n} × ` : ''}{labelOf(menu, 'extra', k)}
                       </span>
                     ))}
                   </div>
@@ -93,7 +96,7 @@ export default async function MiPedidoPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {bebidasOf(myOrder).map(([k, n]) => (
                       <span key={k} className="chip chip-info">
-                        🥤 {n > 1 ? `${n} × ` : ''}{BEBIDA_LABELS[k]} ${(BEBIDA_PRICES[k] * n).toFixed(2)}
+                        🥤 {n > 1 ? `${n} × ` : ''}{labelOf(menu, 'bebida', k)}
                       </span>
                     ))}
                   </div>

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import OrderForm from '@/components/OrderForm'
+import { loadMenu } from '@/lib/menu-server'
 import type { Order } from '@/types'
 
 export const revalidate = 0
@@ -28,7 +29,7 @@ export default async function AdminEditPage({ params }: { params: Promise<{ orde
         <p className="text-xs font-bold mb-1" style={{ color: 'var(--muted)' }}>EDITANDO PEDIDO DE</p>
         <h1 className="text-2xl font-black">{orderProfile?.display_name ?? 'Usuario'}</h1>
       </div>
-      <OrderForm existing={order} adminEdit />
+      <OrderForm existing={order} menu={await loadMenu()} adminEdit />
     </div>
   )
 }

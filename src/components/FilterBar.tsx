@@ -1,70 +1,43 @@
 'use client'
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { itemsOf, type MenuData, type MenuKind } from '@/lib/menu'
 
-const FILTERS = [
-  {
-    param: 'protein',
-    label: 'Proteína',
-    options: [
-      { value: '', label: 'Todas las proteínas' },
-      { value: 'pescado', label: 'Pescado' },
-      { value: 'mixto', label: 'Mixto' },
-      { value: 'camaron', label: 'Camarón' },
-    ],
-  },
-  {
-    param: 'base',
-    label: 'Base',
-    options: [
-      { value: '', label: 'Todas las bases' },
-      { value: 'chifles', label: 'Chifles' },
-      { value: 'doritos_verdes', label: 'Doritos Verdes' },
-      { value: 'jalapeños', label: 'Jalapeños' },
-      { value: 'patacones', label: 'Patacones' },
-      { value: 'no_gracias', label: 'Sin base' },
-    ],
-  },
-  {
-    param: 'bebida',
-    label: 'Bebida',
-    options: [
-      { value: '', label: 'Todas las bebidas' },
-      { value: 'agua', label: 'Agua' },
-      { value: 'agua_mineral', label: 'Agua Mineral' },
-      { value: 'te_helado', label: 'Té Helado' },
-      { value: 'cola', label: 'Cola' },
-      { value: 'imperial', label: 'Imperial' },
-    ],
-  },
-  {
-    param: 'mani',
-    label: 'Maní',
-    options: [
-      { value: '', label: 'Maní: todos' },
-      { value: '1', label: 'Maní: Sí' },
-      { value: '0', label: 'Maní: No' },
-    ],
-  },
-  {
-    param: 'guac',
-    label: 'Guacamole',
-    options: [
-      { value: '', label: 'Guacamole: todos' },
-      { value: '1', label: 'Guacamole: Sí' },
-      { value: '0', label: 'Guacamole: No' },
-    ],
-  },
+interface Filter {
+  param: string
+  options: { value: string; label: string }[]
+}
+
+const yesNo = (label: string): Filter['options'] => [
+  { value: '', label: `${label}: todos` },
+  { value: '1', label: `${label}: Sí` },
+  { value: '0', label: `${label}: No` },
 ]
+
+/** Las opciones de proteína, base y bebida salen del menú (incluye los items ocultos que aún tengan pedidos). */
+function buildFilters(menu: MenuData): Filter[] {
+  const fromMenu = (kind: MenuKind, all: string): Filter['options'] => [
+    { value: '', label: all },
+    ...itemsOf(menu, kind, false).map(i => ({ value: i.key, label: i.label })),
+  ]
+  return [
+    { param: 'protein', options: fromMenu('protein', 'Todas las proteínas') },
+    { param: 'base', options: fromMenu('base', 'Todas las bases') },
+    { param: 'bebida', options: fromMenu('bebida', 'Todas las bebidas') },
+    { param: 'mani', options: yesNo('Maní') },
+    { param: 'guac', options: yesNo('Guacamole') },
+  ]
+}
 
 /**
  * `available`: valores que existen realmente por filtro (ej. { base: ['chifles'] }).
  * Si se omite un filtro, se muestran todas sus opciones.
  */
-export default function FilterBar({ available }: { available?: Record<string, string[]> }) {
+export default function FilterBar({ menu, available }: { menu: MenuData; available?: Record<string, string[]> }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const filters = buildFilters(menu)
 
   function handleChange(param: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -74,7 +47,7 @@ export default function FilterBar({ available }: { available?: Record<string, st
     router.replace(`${pathname}${query ? `?${query}` : ''}`, { scroll: false })
   }
 
-  const hasFilter = FILTERS.some(f => searchParams.get(f.param))
+  const hasFilter = filters.some(f => searchParams.get(f.param))
 
   function clearAll() {
     router.replace(pathname, { scroll: false })
@@ -91,7 +64,7 @@ export default function FilterBar({ available }: { available?: Record<string, st
         )}
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {FILTERS.map(f => {
+        {filters.map(f => {
           const current = searchParams.get(f.param) ?? ''
           const active = current !== ''
           const allowed = available?.[f.param]

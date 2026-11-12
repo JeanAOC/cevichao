@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { todayDate } from '@/lib/date'
 import { sanitizeOrder } from '@/lib/orders'
+import { loadMenu } from '@/lib/menu-server'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -12,7 +13,8 @@ export async function POST(req: Request) {
   const { data: lockSetting } = await supabase.from('settings').select('value').eq('key', 'orders_locked').maybeSingle()
   if (lockSetting?.value === 'true') return NextResponse.json({ error: 'Pedidos bloqueados' }, { status: 403 })
 
-  const order = sanitizeOrder(await req.json().catch(() => null))
+  const menu = await loadMenu()
+  const order = sanitizeOrder(await req.json().catch(() => null), menu)
   if (!order) return NextResponse.json({ error: 'Pedido inválido' }, { status: 400 })
 
   // user_id y fecha vienen de la sesión/servidor, nunca del cliente

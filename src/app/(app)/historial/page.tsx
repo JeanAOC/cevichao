@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Order } from '@/types'
-import { PROTEIN_LABELS, BASE_LABELS, EXTRA_LABELS, extrasOf, bebidasLabel } from '@/lib/pricing'
+import { extrasOf, bebidasLabel } from '@/lib/pricing'
+import { labelOf } from '@/lib/menu'
+import { loadMenu } from '@/lib/menu-server'
 
 export const revalidate = 60
 
@@ -11,6 +13,7 @@ interface PageProps {
 
 export default async function HistorialPage({ searchParams }: PageProps) {
   const { fecha } = await searchParams
+  const menu = await loadMenu()
   const supabase = await createClient()
 
   // Fechas distintas con pedidos
@@ -94,14 +97,14 @@ export default async function HistorialPage({ searchParams }: PageProps) {
                     </div>
                     {!noFood && (
                       <div className="text-sm space-y-1">
-                        <p><span className="font-semibold" style={{ color: 'var(--primary)' }}>{PROTEIN_LABELS[o.protein]}</span> · <span style={{ color: 'var(--muted)' }}>{BASE_LABELS[o.base]}</span></p>
+                        <p><span className="font-semibold" style={{ color: 'var(--primary)' }}>{labelOf(menu, 'protein', o.protein)}</span> · <span style={{ color: 'var(--muted)' }}>{labelOf(menu, 'base', o.base)}</span></p>
                         <div className="flex flex-wrap gap-2 text-xs" style={{ color: 'var(--muted)' }}>
                           {o.extra_mani && <span className="chip chip-info">+Maní</span>}
                           {o.extra_guacamole && <span className="chip chip-info">+Guacamole</span>}
                           {extrasOf(o).map(([k, n]) => (
-                            <span key={k} className="chip chip-info">+{n > 1 ? `${n} × ` : ''}{EXTRA_LABELS[k]}</span>
+                            <span key={k} className="chip chip-info">+{n > 1 ? `${n} × ` : ''}{labelOf(menu, 'extra', k)}</span>
                           ))}
-                          {bebidasLabel(o) && <span>🥤 {bebidasLabel(o)}</span>}
+                          {bebidasLabel(menu, o) && <span>🥤 {bebidasLabel(menu, o)}</span>}
                           {o.sauce_tomate !== 'no' && <span>Tomate {o.sauce_tomate}</span>}
                           {o.sauce_limon !== 'no' && <span>Limón {o.sauce_limon}</span>}
                           {o.sauce_mostaza !== 'no' && <span>Mostaza {o.sauce_mostaza}</span>}

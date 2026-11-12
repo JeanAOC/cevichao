@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sanitizeOrder } from '@/lib/orders'
+import { loadMenu } from '@/lib/menu-server'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -12,7 +13,8 @@ export async function POST(req: Request) {
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json().catch(() => null)
-  const order = sanitizeOrder(body?.payload)
+  // El admin puede dejar items ocultos del menú (pedidos viejos)
+  const order = sanitizeOrder(body?.payload, await loadMenu(), { allowInactive: true })
   if (typeof body?.orderId !== 'string' || !order) {
     return NextResponse.json({ error: 'Pedido inválido' }, { status: 400 })
   }

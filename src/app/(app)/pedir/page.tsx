@@ -5,6 +5,7 @@ import type { Order } from '@/types'
 export const revalidate = 0
 
 import { todayDate } from '@/lib/date'
+import { loadMenu } from '@/lib/menu-server'
 
 export default async function PedirPage() {
   const supabase = await createClient()
@@ -17,6 +18,7 @@ export default async function PedirPage() {
   ])
 
   const isLocked = lockSetting?.value === 'true'
+  const menu = await loadMenu()
 
   if (isLocked) {
     return (
@@ -33,7 +35,7 @@ export default async function PedirPage() {
       <div>
         <h1 className="text-2xl font-black mb-1">Editar pedido</h1>
         <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>Cambia lo que necesites antes de que se bloquee.</p>
-        <OrderForm existing={existing} />
+        <OrderForm existing={existing} menu={menu} />
       </div>
     )
   }
@@ -42,7 +44,7 @@ export default async function PedirPage() {
     <div>
       <h1 className="text-2xl font-black mb-1">Hacer pedido</h1>
       <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>Elige tu ceviche de hoy.</p>
-      <OrderForm existing={null} />
+      <OrderForm existing={null} menu={menu} />
     </div>
   )
 }
