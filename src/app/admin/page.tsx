@@ -3,39 +3,16 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import MarkPaidButton from './MarkPaidButton'
-import FilterBar from './FilterBar'
 import LockButton from './LockButton'
 import DeleteOrderButton from './DeleteOrderButton'
 import type { Order } from '@/types'
-import { PROTEIN_LABELS, BASE_LABELS, BEBIDA_LABELS } from '@/lib/pricing'
+import { PROTEIN_LABELS, BASE_LABELS, BEBIDA_LABELS, EXTRA_LABELS, extrasOf, bebidasOf } from '@/lib/pricing'
 
 export const revalidate = 0
 
-function todayDate() {
-  const now = new Date()
-  const ec = new Date(now.getTime() - 5 * 60 * 60 * 1000)
-  return ec.toISOString().split('T')[0]
-}
+import { todayDate } from '@/lib/date'
 
-function CountGrid({ title, items }: { title: string; items: [string, number][] }) {
-  if (items.length === 0) return null
-  return (
-    <div>
-      <p className="text-xs font-bold mb-2" style={{ color: 'var(--muted)' }}>{title}</p>
-      <div className="flex flex-wrap gap-2">
-        {items.map(([label, count]) => (
-          <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border"
-            style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-            <span className="text-sm font-semibold">{label}</span>
-            <span className="text-lg font-black" style={{ color: 'var(--primary)' }}>{count}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+export default async function AdminPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -43,7 +20,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     .from('profiles').select('is_admin').eq('id', user!.id).single()
   if (!profile?.is_admin) redirect('/')
 
-  const filters = await searchParams
   const admin = createAdminClient()
   const today = todayDate()
 
@@ -56,39 +32,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const allOrdersRaw = allOrders ?? []
   const realOrders = allOrdersRaw.filter(o => o.protein !== 'no_por_hoy')
 
-  // Aplicar filtros
-  const orders = allOrdersRaw.filter(o => {
-    if (o.protein === 'no_por_hoy') return true
-    if (filters.protein && o.protein !== filters.protein) return false
-    if (filters.base && o.base !== filters.base) return false
-    if (filters.mani === '1' && !o.extra_mani) return false
-    if (filters.mani === '0' && o.extra_mani) return false
-    if (filters.guac === '1' && !o.extra_guacamole) return false
-    if (filters.guac === '0' && o.extra_guacamole) return false
-    return true
-  })
-  const filteredReal = orders.filter(o => o.protein !== 'no_por_hoy')
+  const orders = allOrdersRaw
   const totalHoy = realOrders.reduce((s, o) => s + Number(o.total), 0)
   const cobrado = realOrders.filter(o => o.paid).reduce((s, o) => s + Number(o.total), 0)
   const pendiente = totalHoy - cobrado
-
-  // Conteos
-  const proteinCounts: Record<string, number> = {}
-  const baseCounts: Record<string, number> = {}
-  const bebidaCounts: Record<string, number> = {}
-  let cntSalPrieta = 0, cntManiQ = 0, cntCocolon = 0, cntToston = 0
-
-  for (const o of realOrders) {
-    proteinCounts[o.protein] = (proteinCounts[o.protein] ?? 0) + 1
-    baseCounts[o.base] = (baseCounts[o.base] ?? 0) + 1
-    if (o.extra_sal_prieta) cntSalPrieta++
-    if (o.extra_mani_quebrado) cntManiQ++
-    if (o.extra_cocolon) cntCocolon++
-    if (o.extra_toston) cntToston++
-    if (o.bebida && o.bebida !== 'ninguna') {
-      bebidaCounts[o.bebida] = (bebidaCounts[o.bebida] ?? 0) + 1
-    }
-  }
 
   const dateLabel = new Date(today + 'T12:00:00').toLocaleDateString('es-EC', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -129,37 +76,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ))}
         </div>
 
-        {/* Resumen pedidos */}
-        {realOrders.length > 0 && (
-          <div className="rounded-2xl border p-4 space-y-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-            <h2 className="font-bold text-sm" style={{ color: 'var(--muted)' }}>RESUMEN — {realOrders.length} PEDIDOS</h2>
-            <CountGrid title="PROTEÍNAS"
-              items={Object.entries(proteinCounts).map(([k, v]) => [PROTEIN_LABELS[k as keyof typeof PROTEIN_LABELS] ?? k, v])} />
-            <CountGrid title="BASES"
-              items={Object.entries(baseCounts).map(([k, v]) => [BASE_LABELS[k as keyof typeof BASE_LABELS] ?? k, v])} />
-            {(cntSalPrieta + cntManiQ + cntCocolon + cntToston) > 0 && (
-              <CountGrid title="EXTRAS"
-                items={[
-                  ...(cntSalPrieta > 0 ? [['Salprieta', cntSalPrieta] as [string, number]] : []),
-                  ...(cntManiQ > 0 ? [['M.Quebrado', cntManiQ] as [string, number]] : []),
-                  ...(cntCocolon > 0 ? [['Cocolón', cntCocolon] as [string, number]] : []),
-                  ...(cntToston > 0 ? [['Tostón', cntToston] as [string, number]] : []),
-                ]} />
-            )}
-            {Object.keys(bebidaCounts).length > 0 && (
-              <CountGrid title="BEBIDAS"
-                items={Object.entries(bebidaCounts).map(([k, v]) => [BEBIDA_LABELS[k as keyof typeof BEBIDA_LABELS] ?? k, v])} />
-            )}
-          </div>
-        )}
-
-        {/* Filtros */}
-        <FilterBar />
-
         {/* Lista pedidos */}
         <div>
           <p className="text-xs font-bold mb-3 px-1" style={{ color: 'var(--muted)' }}>
-            PEDIDOS HOY — {filteredReal.length}{filteredReal.length !== realOrders.length ? ` de ${realOrders.length}` : ''} personas
+            PEDIDOS HOY — {realOrders.length} personas
           </p>
           {orders.length === 0 ? (
             <div className="rounded-2xl border p-8 text-center" style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
@@ -169,7 +89,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             <div className="space-y-3">
               {orders.map(o => {
                 const noFood = o.protein === 'no_por_hoy'
-                const name = (o.profile as any)?.display_name ?? 'Usuario'
+                const name = o.profile?.display_name ?? 'Usuario'
                 const accentColor = noFood ? 'var(--border)' : o.paid ? 'var(--success)' : 'var(--accent)'
                 return (
                   <div key={o.id} className="rounded-2xl border overflow-hidden"
@@ -242,17 +162,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                         </div>
 
                         {/* Extras de pago + bebida */}
-                        {(o.extra_sal_prieta || o.extra_mani_quebrado || o.extra_cocolon || o.extra_toston || (o.bebida && o.bebida !== 'ninguna')) && (
+                        {(extrasOf(o).length > 0 || bebidasOf(o).length > 0) && (
                           <div className="flex flex-wrap gap-1.5">
-                            {o.extra_sal_prieta && <span className="text-xs px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'color-mix(in srgb, var(--accent) 12%, var(--card))', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>+Salprieta</span>}
-                            {o.extra_mani_quebrado && <span className="text-xs px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'color-mix(in srgb, var(--accent) 12%, var(--card))', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>+M.Quebrado</span>}
-                            {o.extra_cocolon && <span className="text-xs px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'color-mix(in srgb, var(--accent) 12%, var(--card))', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>+Cocolón</span>}
-                            {o.extra_toston && <span className="text-xs px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'color-mix(in srgb, var(--accent) 12%, var(--card))', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>+Tostón</span>}
-                            {o.bebida && o.bebida !== 'ninguna' && (
-                              <span className="text-xs px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'color-mix(in srgb, var(--primary) 12%, var(--card))', color: 'var(--primary)', border: '1px solid color-mix(in srgb, var(--primary) 25%, transparent)' }}>
-                                🥤 {BEBIDA_LABELS[o.bebida]}
+                            {extrasOf(o).map(([k, n]) => (
+                              <span key={k} className="text-xs px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'color-mix(in srgb, var(--accent) 12%, var(--card))', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>
+                                +{n > 1 ? `${n} × ` : ''}{EXTRA_LABELS[k]}
                               </span>
-                            )}
+                            ))}
+                            {bebidasOf(o).map(([k, n]) => (
+                              <span key={k} className="text-xs px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'color-mix(in srgb, var(--primary) 12%, var(--card))', color: 'var(--primary)', border: '1px solid color-mix(in srgb, var(--primary) 25%, transparent)' }}>
+                                🥤 {n > 1 ? `${n} × ` : ''}{BEBIDA_LABELS[k]}
+                              </span>
+                            ))}
                           </div>
                         )}
 
@@ -264,13 +185,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                             { label: 'Mostaza', val: o.sauce_mostaza },
                             { label: 'Ají', val: o.sauce_aji },
                           ] as const).map(({ label, val }) => {
-                            const colors: Record<string, string> = { poco: '#ca8a04', medio: '#ea580c', mucho: '#dc2626' }
-                            const color = val !== 'no' ? colors[val] : undefined
                             return (
                               <div key={label} className="flex flex-col items-center gap-0.5 py-2.5 rounded-xl text-center"
-                                style={color
-                                  ? { background: `color-mix(in srgb, ${color} 15%, var(--card))`, border: `1.5px solid color-mix(in srgb, ${color} 30%, transparent)`, color }
-                                  : { background: 'var(--bg)', border: '1.5px solid var(--border)', color: 'var(--border)' }}>
+                                style={val !== 'no'
+                                  ? { background: `var(--${val}-bg)`, border: `1.5px solid var(--${val}-bd)`, color: `var(--${val}-fg)` }
+                                  : { background: 'var(--bg)', border: '1.5px solid var(--border)', color: 'var(--muted)' }}>
                                 <span className="text-[10px] font-bold uppercase tracking-wide">{label}</span>
                                 <span className="text-xs font-black">{val !== 'no' ? val.charAt(0).toUpperCase() + val.slice(1) : '—'}</span>
                               </div>

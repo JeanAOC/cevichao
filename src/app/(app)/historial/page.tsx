@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Order } from '@/types'
-import { PROTEIN_LABELS, BASE_LABELS } from '@/lib/pricing'
+import { PROTEIN_LABELS, BASE_LABELS, EXTRA_LABELS, extrasOf, bebidasLabel } from '@/lib/pricing'
 
 export const revalidate = 60
 
@@ -82,12 +82,12 @@ export default async function HistorialPage({ searchParams }: PageProps) {
                   <div key={o.id} className="rounded-2xl border p-4"
                     style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold">{(o.profile as any)?.display_name ?? 'Usuario'}</span>
+                      <span className="font-bold">{o.profile?.display_name ?? 'Usuario'}</span>
                       <div className="flex items-center gap-2">
                         {!noFood && (
                           <span className="font-black" style={{ color: 'var(--success)' }}>${Number(o.total).toFixed(2)}</span>
                         )}
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${noFood ? 'bg-gray-100 text-gray-500' : o.paid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        <span className={`chip ${noFood ? 'chip-neutral' : o.paid ? 'chip-ok' : 'chip-warn'}`}>
                           {noFood ? 'No pidió' : o.paid ? 'Pagado' : 'Pendiente'}
                         </span>
                       </div>
@@ -96,9 +96,12 @@ export default async function HistorialPage({ searchParams }: PageProps) {
                       <div className="text-sm space-y-1">
                         <p><span className="font-semibold" style={{ color: 'var(--primary)' }}>{PROTEIN_LABELS[o.protein]}</span> · <span style={{ color: 'var(--muted)' }}>{BASE_LABELS[o.base]}</span></p>
                         <div className="flex flex-wrap gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-                          {o.extra_mani && <span className="text-blue-600">+Maní</span>}
-                          {o.extra_cocolon && <span className="text-blue-600">+Cocolón</span>}
-                          {o.extra_guacamole && <span className="text-blue-600">+Guacamole</span>}
+                          {o.extra_mani && <span className="chip chip-info">+Maní</span>}
+                          {o.extra_guacamole && <span className="chip chip-info">+Guacamole</span>}
+                          {extrasOf(o).map(([k, n]) => (
+                            <span key={k} className="chip chip-info">+{n > 1 ? `${n} × ` : ''}{EXTRA_LABELS[k]}</span>
+                          ))}
+                          {bebidasLabel(o) && <span>🥤 {bebidasLabel(o)}</span>}
                           {o.sauce_tomate !== 'no' && <span>Tomate {o.sauce_tomate}</span>}
                           {o.sauce_limon !== 'no' && <span>Limón {o.sauce_limon}</span>}
                           {o.sauce_mostaza !== 'no' && <span>Mostaza {o.sauce_mostaza}</span>}

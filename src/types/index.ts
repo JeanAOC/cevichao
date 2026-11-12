@@ -1,9 +1,10 @@
-import type { Protein, Base, SauceAmount, Bebida } from '@/lib/pricing'
+import type { Protein, Base, SauceAmount, Bebida, BebidaCounts, ExtraCounts } from '@/lib/pricing'
 
 export interface Profile {
   id: string
   display_name: string
   is_admin: boolean
+  can_collect?: boolean
   created_at: string
 }
 
@@ -19,7 +20,9 @@ export interface Order {
   extra_mani_quebrado: boolean
   extra_cocolon: boolean
   extra_toston: boolean
-  bebida: Bebida
+  extras?: ExtraCounts | null // cantidades; los booleanos de arriba son la columna antigua (usar extrasOf())
+  bebida: Bebida // columna antigua (una sola bebida); usar bebidasOf() para leer
+  bebidas?: BebidaCounts | null
   sauce_tomate: SauceAmount
   sauce_limon: SauceAmount
   sauce_mostaza: SauceAmount
@@ -30,5 +33,5 @@ export interface Order {
   paid_at: string | null
   created_at: string
   updated_at: string
-  profile?: Profile
+  profile?: Pick<Profile, 'display_name'>
 }

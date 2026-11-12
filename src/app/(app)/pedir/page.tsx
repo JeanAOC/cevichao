@@ -4,11 +4,7 @@ import type { Order } from '@/types'
 
 export const revalidate = 0
 
-function todayDate() {
-  const now = new Date()
-  const ec = new Date(now.getTime() - 5 * 60 * 60 * 1000)
-  return ec.toISOString().split('T')[0]
-}
+import { todayDate } from '@/lib/date'
 
 export default async function PedirPage() {
   const supabase = await createClient()
@@ -37,7 +33,7 @@ export default async function PedirPage() {
       <div>
         <h1 className="text-2xl font-black mb-1">Editar pedido</h1>
         <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>Cambia lo que necesites antes de que se bloquee.</p>
-        <OrderForm existing={existing} userId={user!.id} orderDate={today} />
+        <OrderForm existing={existing} />
       </div>
     )
   }
@@ -46,7 +42,7 @@ export default async function PedirPage() {
     <div>
       <h1 className="text-2xl font-black mb-1">Hacer pedido</h1>
       <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>Elige tu ceviche de hoy.</p>
-      <OrderForm existing={null} userId={user!.id} orderDate={today} />
+      <OrderForm existing={null} />
     </div>
   )
 }

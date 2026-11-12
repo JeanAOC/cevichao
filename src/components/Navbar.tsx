@@ -7,17 +7,21 @@ import { createClient } from '@/lib/supabase/client'
 
 interface NavbarProps {
   displayName: string
-  isAdmin: boolean
+  /** Ve el botón Pagos (cobradores y admins). */
+  canCollect: boolean
 }
 
 const NAV = [
-  { href: '/dashboard', label: 'Hoy', icon: '🏠' },
+  { href: '/dashboard', label: 'Menú', icon: '📖' },
   { href: '/pedir', label: 'Pedir', icon: '🐟' },
+  { href: '/mi-pedido', label: 'Mi pedido', icon: '🧾' },
   { href: '/tabla', label: 'Tabla', icon: '📋' },
   { href: '/historial', label: 'Historial', icon: '📅' },
 ]
+const PAGOS = { href: '/pagos', label: 'Pagos', icon: '💰' }
 
-export default function Navbar({ displayName, isAdmin }: NavbarProps) {
+export default function Navbar({ displayName, canCollect }: NavbarProps) {
+  const items = canCollect ? [...NAV, PAGOS] : NAV
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -56,7 +60,7 @@ export default function Navbar({ displayName, isAdmin }: NavbarProps) {
 
           {/* Nav links — desktop */}
           <nav className="hidden sm:flex items-center gap-1 flex-1">
-            {NAV.map(({ href, label }) => {
+            {items.map(({ href, label }) => {
               const active = pathname === href
               return (
                 <Link key={href} href={href}
@@ -72,13 +76,6 @@ export default function Navbar({ displayName, isAdmin }: NavbarProps) {
 
           {/* Right: admin + name + theme + salir */}
           <div className="flex items-center gap-2 ml-auto shrink-0">
-            {isAdmin && (
-              <Link href="/admin"
-                className="text-xs font-bold px-3 py-1 rounded-full"
-                style={{ background: 'var(--accent)', color: 'var(--accent-fg)' }}>
-                Admin
-              </Link>
-            )}
             <span className="text-sm font-medium hidden sm:block">{displayName}</span>
             <button onClick={toggleTheme}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-base border transition-colors"
@@ -99,7 +96,7 @@ export default function Navbar({ displayName, isAdmin }: NavbarProps) {
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t sm:hidden"
         style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
         <div className="flex">
-          {NAV.map(({ href, label, icon }) => {
+          {items.map(({ href, label, icon }) => {
             const active = pathname === href
             return (
               <Link key={href} href={href}

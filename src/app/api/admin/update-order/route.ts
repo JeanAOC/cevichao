@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sanitizeOrder } from '@/lib/orders'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -10,9 +11,14 @@ export async function POST(req: Request) {
   const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { orderId, payload } = await req.json()
+  const body = await req.json().catch(() => null)
+  const order = sanitizeOrder(body?.payload)
+  if (typeof body?.orderId !== 'string' || !order) {
+    return NextResponse.json({ error: 'Pedido inválido' }, { status: 400 })
+  }
+
   const admin = createAdminClient()
-  const { error } = await admin.from('orders').update(payload).eq('id', orderId)
+  const { error } = await admin.from('orders').update(order).eq('id', body.orderId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })

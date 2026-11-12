@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 export default function CancelOrderButton() {
@@ -34,11 +35,11 @@ export default function CancelOrderButton() {
 
   return (
     <div className="flex gap-2 pt-1">
-      <a href="/pedir"
+      <Link href="/pedir"
         className="flex-1 py-2 rounded-xl font-bold text-sm text-center border transition-colors"
         style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
         Editar pedido
-      </a>
+      </Link>
       <button onClick={() => setConfirm(true)}
         className="flex-1 py-2 rounded-xl font-bold text-sm border"
         style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>

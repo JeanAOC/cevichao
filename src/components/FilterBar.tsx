@@ -26,6 +26,18 @@ const FILTERS = [
     ],
   },
   {
+    param: 'bebida',
+    label: 'Bebida',
+    options: [
+      { value: '', label: 'Todas las bebidas' },
+      { value: 'agua', label: 'Agua' },
+      { value: 'agua_mineral', label: 'Agua Mineral' },
+      { value: 'te_helado', label: 'Té Helado' },
+      { value: 'cola', label: 'Cola' },
+      { value: 'imperial', label: 'Imperial' },
+    ],
+  },
+  {
     param: 'mani',
     label: 'Maní',
     options: [
@@ -45,7 +57,11 @@ const FILTERS = [
   },
 ]
 
-export default function FilterBar() {
+/**
+ * `available`: valores que existen realmente por filtro (ej. { base: ['chifles'] }).
+ * Si se omite un filtro, se muestran todas sus opciones.
+ */
+export default function FilterBar({ available }: { available?: Record<string, string[]> }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -74,10 +90,13 @@ export default function FilterBar() {
           </button>
         )}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {FILTERS.map(f => {
           const current = searchParams.get(f.param) ?? ''
           const active = current !== ''
+          const allowed = available?.[f.param]
+          const options = f.options.filter(o => o.value === '' || o.value === current || !allowed || allowed.includes(o.value))
+          if (options.length <= 1) return null
           return (
             <select
               key={f.param}
@@ -89,7 +108,7 @@ export default function FilterBar() {
                 border: active ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
                 color: active ? 'var(--primary)' : 'var(--muted)',
               }}>
-              {f.options.map(o => (
+              {options.map(o => (
                 <option key={o.value} value={o.value} style={{ background: 'var(--card)', color: 'var(--text)' }}>
                   {o.label}
                 </option>

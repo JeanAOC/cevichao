@@ -28,7 +28,7 @@ export default async function AdminEditPage({ params }: { params: Promise<{ orde
         <p className="text-xs font-bold mb-1" style={{ color: 'var(--muted)' }}>EDITANDO PEDIDO DE</p>
         <h1 className="text-2xl font-black">{orderProfile?.display_name ?? 'Usuario'}</h1>
       </div>
-      <OrderForm existing={order} userId={order.user_id} orderDate={order.order_date} adminEdit />
+      <OrderForm existing={order} adminEdit />
     </div>
   )
 }

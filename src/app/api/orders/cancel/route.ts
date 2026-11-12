@@ -1,11 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-function todayDate() {
-  const now = new Date()
-  const ec = new Date(now.getTime() - 5 * 60 * 60 * 1000)
-  return ec.toISOString().split('T')[0]
-}
+import { todayDate } from '@/lib/date'
 
 export async function POST() {
   const supabase = await createClient()
