@@ -20,12 +20,12 @@ export default function MarkAllButton({ pending }: { pending: number }) {
     return (
       <div className="flex items-center gap-2">
         <button onClick={markAll} disabled={loading}
-          className="text-xs px-3 py-2 rounded-lg font-bold disabled:opacity-50"
-          style={{ background: 'var(--success)', color: 'white' }}>
+          className="text-sm px-4 min-h-11 rounded-lg font-bold disabled:opacity-50"
+          style={{ background: 'var(--success)', color: 'var(--success-fg)' }}>
           {loading ? '…' : `Sí, ${pending} pagaron`}
         </button>
         <button onClick={() => setConfirm(false)} disabled={loading}
-          className="text-xs px-3 py-2 rounded-lg font-bold border"
+          className="text-sm px-4 min-h-11 rounded-lg font-bold border"
           style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
           No
         </button>
@@ -35,7 +35,7 @@ export default function MarkAllButton({ pending }: { pending: number }) {
 
   return (
     <button onClick={() => setConfirm(true)}
-      className="text-xs px-3 py-2 rounded-lg font-bold"
+      className="text-sm px-4 min-h-11 rounded-lg font-bold"
       style={{ background: 'color-mix(in srgb, var(--success) 15%, var(--card))', color: 'var(--success)', border: '1.5px solid color-mix(in srgb, var(--success) 35%, transparent)' }}>
       ✓ Marcar todos pagados
     </button>

@@ -54,11 +54,11 @@ export default function FilterBar({ menu, available }: { menu: MenuData; availab
   }
 
   return (
-    <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+    <div className="rounded-2xl border p-4 shadow-card" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-bold" style={{ color: 'var(--muted)' }}>FILTRAR</p>
+        <p className="text-xs font-bold tracking-wide" style={{ color: 'var(--muted)' }}>FILTRAR</p>
         {hasFilter && (
-          <button onClick={clearAll} className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+          <button onClick={clearAll} className="text-sm font-semibold min-h-11 px-2" style={{ color: 'var(--danger)' }}>
             Limpiar filtros
           </button>
         )}
@@ -75,11 +75,13 @@ export default function FilterBar({ menu, available }: { menu: MenuData; availab
               key={f.param}
               value={current}
               onChange={e => handleChange(f.param, e.target.value)}
-              className="w-full px-3 py-2 rounded-xl text-sm font-semibold outline-none cursor-pointer transition-all"
+              data-own-style
+              aria-label={f.options[0].label}
+              className="w-full px-3 min-h-11 rounded-xl text-sm font-semibold cursor-pointer transition-all"
               style={{
-                background: active ? 'color-mix(in srgb, var(--primary) 15%, var(--card))' : 'var(--bg)',
-                border: active ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
-                color: active ? 'var(--primary)' : 'var(--muted)',
+                background: active ? 'color-mix(in srgb, var(--primary) 15%, var(--card))' : 'var(--field)',
+                border: active ? '1.5px solid var(--primary)' : '1.5px solid var(--field-bd)',
+                color: active ? 'var(--primary)' : 'var(--text)',
               }}>
               {options.map(o => (
                 <option key={o.value} value={o.value} style={{ background: 'var(--card)', color: 'var(--text)' }}>

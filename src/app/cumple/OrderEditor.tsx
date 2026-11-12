@@ -21,8 +21,8 @@ interface Props {
   onDone?: () => void
 }
 
-const inputCls = 'w-full px-4 py-3 rounded-xl text-base outline-none'
-const inputStyle = { background: 'var(--bg)', border: '1.5px solid var(--border)', color: 'var(--text)' }
+const inputCls = 'w-full px-4 py-3 min-h-12 rounded-xl text-base'
+const inputStyle = { color: 'var(--text)' }
 
 function MoneyInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
@@ -81,11 +81,11 @@ export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, n
     <form onSubmit={save} className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
         {([[true, 'Voy a pedir'], [false, 'Esta vez no']] as const).map(([val, label]) => (
-          <button key={label} type="button" onClick={() => setAttending(val)}
-            className="py-3 rounded-xl font-bold text-sm border-2 transition-colors"
+          <button key={label} type="button" onClick={() => setAttending(val)} aria-pressed={attending === val}
+            className="min-h-12 rounded-xl font-bold border-2 transition-colors"
             style={attending === val
-              ? { borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 10%, transparent)', color: 'var(--primary)' }
-              : { borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--muted)' }}>
+              ? { borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 12%, var(--card))', color: 'var(--primary)' }
+              : { borderColor: 'var(--field-bd)', background: 'var(--card)', color: 'var(--text)' }}>
             {label}
           </button>
         ))}
@@ -105,16 +105,17 @@ export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, n
             <MoneyInput label="Bebidas y extras" value={extras} onChange={setExtras} />
           </div>
 
-          <div className="rounded-xl border px-4 py-3 text-sm space-y-1" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+          {/* Cuenta como ticket */}
+          <div className="rounded-xl border-2 border-dashed px-4 py-3 text-sm space-y-1" style={{ background: 'var(--card)', borderColor: 'var(--field-bd)' }}>
             <div className="flex justify-between"><span style={{ color: 'var(--muted)' }}>Valor + extras</span><span>{money(base)}</span></div>
             <div className="flex justify-between"><span style={{ color: 'var(--muted)' }}>IVA {ivaRate}%</span><span>{money(iva)}</span></div>
-            <div className="flex justify-between font-black border-t pt-1" style={{ borderColor: 'var(--border)' }}>
-              <span>Tu pedido</span><span style={{ color: 'var(--success)' }}>{money(round2(base + iva))}</span>
+            <div className="flex justify-between items-baseline font-extrabold border-t border-dashed pt-2 mt-1" style={{ borderColor: 'var(--field-bd)' }}>
+              <span>Tu pedido</span><span className="font-display text-xl" style={{ color: 'var(--accent)' }}>{money(round2(base + iva))}</span>
             </div>
           </div>
         </>
       ) : (
-        <p className="text-sm rounded-xl px-4 py-3" style={{ background: 'var(--bg)', color: 'var(--muted)' }}>
+        <p className="text-sm rounded-xl px-4 py-3 border" style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
           No pides esta vez, pero igual pagas tu parte del cumpleañero.
         </p>
       )}
@@ -122,7 +123,7 @@ export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, n
       {message && <p className="text-sm font-semibold" style={{ color: message.ok ? 'var(--success)' : 'var(--danger)' }}>{message.text}</p>}
 
       <button type="submit" disabled={saving || !valid}
-        className="w-full py-3 rounded-xl font-bold text-sm disabled:opacity-50"
+        className="w-full min-h-12 rounded-xl font-bold disabled:opacity-50"
         style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
         {saving ? 'Guardando…' : (submitLabel ?? 'Guardar pedido')}
       </button>

@@ -1,9 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStaff } from '@/lib/auth'
 import { parseAmount } from '@/lib/cumple'
+import { sanitizeAccount } from '@/lib/payment'
 import { NextResponse } from 'next/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const QR_FORMAT = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/
+const MAX_QR = 400_000
 const err = (message: string, status = 400) => NextResponse.json({ error: message }, { status })
 const MISSING = 'Falta crear las tablas de cumpleaños: ejecuta el SQL «cumpleanos» en Supabase.'
 const dbError = (e: { code?: string; message: string }) =>
@@ -13,6 +16,7 @@ const dbError = (e: { code?: string; message: string }) =>
  * Lo que hace cada persona con SU propio pedido en un evento.
  *  - { action: 'save', eventId, attending, description, amount, extrasAmount }
  *  - { action: 'remove', eventId }
+ *  - { action: 'savePayment', eventId, account?, qr? } (solo si esta persona es quien pagó la cuenta)
  */
 export async function POST(req: Request) {
   const staff = await getStaff()
@@ -22,14 +26,35 @@ export async function POST(req: Request) {
   if (!body || typeof body.eventId !== 'string' || !UUID.test(body.eventId)) return err('Evento inválido')
 
   const admin = createAdminClient()
-  const { data: event, error } = await admin.from('events').select('id, status').eq('id', body.eventId).maybeSingle()
+  const { data: event, error } = await admin.from('events').select('id, status, payer_order_id').eq('id', body.eventId).maybeSingle()
   if (error) return dbError(error)
   if (!event) return err('Evento no encontrado', 404)
-  if (event.status !== 'open') return err('Este evento ya está cerrado', 403)
+  // Poner la cuenta de cobro sigue permitido con el evento cerrado (todavía hay que cobrar)
+  if (event.status !== 'open' && body.action !== 'savePayment') return err('Este evento ya está cerrado', 403)
 
   const { data: mine, error: mineError } = await admin
     .from('event_orders').select('id, paid, is_birthday').eq('event_id', event.id).eq('user_id', staff.userId).maybeSingle()
   if (mineError) return dbError(mineError)
+
+  // Datos de cobro: solo quien fue elegido como pagador de la cuenta (el organizador usa /api/cumple/manage)
+  if (body.action === 'savePayment') {
+    if (!mine || event.payer_order_id !== mine.id) return err('Solo quien pagó la cuenta puede poner los datos de cobro', 403)
+    const patch: Record<string, string> = {}
+    if ('account' in body) {
+      const result = sanitizeAccount(body.account)
+      if ('error' in result) return err(result.error)
+      patch.payment_info = JSON.stringify(result.account)
+    }
+    if ('qr' in body) {
+      if (body.qr === null) patch.payment_qr = ''
+      else if (typeof body.qr === 'string' && body.qr.length <= MAX_QR && QR_FORMAT.test(body.qr)) patch.payment_qr = body.qr
+      else return err('El QR debe ser una imagen PNG, JPG o WEBP pequeña')
+    }
+    if (Object.keys(patch).length === 0) return err('No hay nada que guardar')
+    const { error: payError } = await admin.from('events').update(patch).eq('id', event.id)
+    if (payError) return dbError(payError)
+    return NextResponse.json({ ok: true })
+  }
 
   if (body.action === 'remove') {
     if (!mine) return NextResponse.json({ ok: true })

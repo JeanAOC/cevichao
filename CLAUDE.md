@@ -74,7 +74,12 @@ Lógica en `src/lib/cumple.ts` (`computeSummary`). Verificada contra la hoja "Cu
 - Exportar: `/api/cumple/export` genera `.xlsx` con las columnas Nombre, Pedido, Valor, Bebidas y extras, IVA, Subtotal, Invitado, Total a pagar, Pagado, Saldo, con fórmulas vivas y el cumpleañero en amarillo.
 
 ## Convenciones de UI
-- Colores solo con variables CSS de `src/app/globals.css` (tema claro/oscuro con `data-theme`). Chips semánticos: `.chip chip-ok|warn|info|neutral|poco|medio|mucho`.
+- **Identidad «puesto de ceviche»** (rediseño del 2026-11-12): arena cálida + verde azulado (`--primary`) + terracota (`--accent`, también para los **montos de dinero**) + `--sun`. Toldo con festón bajo la barra (`.awning`, dentro de `Navbar`), papel punteado de fondo, carta con puntos guía (`.menu-row` + `.leader` + `.menu-price`), tickets con borde discontinuo. Fuentes con `next/font/google` en `layout.tsx`: Bricolage Grotesque (`--font-display`, títulos y la clase `.font-display`) + Figtree (`--font-body`).
+- Colores solo con variables CSS de `src/app/globals.css` (tema claro/oscuro con `data-theme`). Texto sobre fondos de color: `--primary-fg|accent-fg|success-fg|danger-fg|sun-fg` (nunca `white`). Chips semánticos: `.chip chip-ok|warn|info|neutral|poco|medio|mucho`.
+- **Campos** (`input/select/textarea`): `globals.css` les fuerza fondo `--field` y borde `--field-bd` con `!important` (contraste suficiente) y 16 px en celular (evita el zoom de iPhone). Para salirse: atributo `data-own-style` (lo usa `FilterBar`). Sombra de tarjeta: clase `shadow-card`.
+- Pestañas con scroll lateral: clase `.tabs-fade` (degradado que avisa que hay más); `.tabs-fade-sm` solo en celular.
+- Ancho de contenido `max-w-5xl` en navbar y layouts; barra inferior móvil de 56 px (`h-14`), solo si hay más de un destino. `OrderForm` lleva una barra fija (total + Atrás/Siguiente) que se apoya sobre esa barra inferior.
+- No usar la clase `capitalize` en fechas (en español pone «De»): capitalizar solo la primera letra.
 - Pestañas: `TabNav` (en la URL `?tab=`), usado en `/pagos`, `/admin` y `/cumple/[id]`. (`/pagos` aún tiene su propia copia de ese código.)
 - Acciones de servidor desde botones: `ActionButton` (con confirmación en dos pasos opcional).
 - Mobile primero: padding 16-24 px, objetivos táctiles ≥ 44 px, pestañas con scroll horizontal.

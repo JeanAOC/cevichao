@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-const inputCls = 'w-full px-4 py-3 rounded-xl text-base outline-none'
-const inputStyle = { background: 'var(--bg)', border: '1.5px solid var(--border)', color: 'var(--text)' }
+const inputCls = 'w-full px-4 min-h-12 rounded-xl text-base'
 
-export default function NewEventForm({ today }: { today: string }) {
+/** Crear evento: queda plegado para que la lista de eventos (lo que más se usa) vaya primero. */
+export default function NewEventForm({ today, defaultOpen = false }: { today: string; defaultOpen?: boolean }) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [date, setDate] = useState(today)
@@ -30,28 +30,33 @@ export default function NewEventForm({ today }: { today: string }) {
   }
 
   return (
-    <form onSubmit={create} className="rounded-2xl border p-5 space-y-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-      <h2 className="font-black">Nuevo evento</h2>
-      <label className="block">
-        <span className="text-sm font-semibold block mb-1.5">Nombre</span>
-        <input value={name} onChange={e => setName(e.target.value)} maxLength={60} required placeholder="Cumple Andy"
-          className={inputCls} style={inputStyle} />
-      </label>
-      <div className="grid grid-cols-2 gap-3">
+    <details open={defaultOpen} className="group rounded-2xl border-2 border-dashed" style={{ borderColor: 'var(--field-bd)', background: 'var(--card)' }}>
+      <summary className="flex items-center justify-between gap-3 min-h-14 px-5 cursor-pointer list-none font-extrabold font-display text-lg [&::-webkit-details-marker]:hidden">
+        <span>＋ Nuevo evento</span>
+        <span className="text-sm font-semibold transition-transform group-open:rotate-180" style={{ color: 'var(--muted)' }} aria-hidden>▾</span>
+      </summary>
+      <form onSubmit={create} className="px-5 pb-5 space-y-4">
         <label className="block">
-          <span className="text-sm font-semibold block mb-1.5">Fecha</span>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} required className={inputCls} style={inputStyle} />
+          <span className="text-sm font-semibold block mb-1.5">Nombre</span>
+          <input value={name} onChange={e => setName(e.target.value)} maxLength={60} required placeholder="Cumple Andy"
+            className={inputCls} />
         </label>
-        <label className="block">
-          <span className="text-sm font-semibold block mb-1.5">IVA %</span>
-          <input value={iva} onChange={e => setIva(e.target.value)} inputMode="decimal" className={inputCls} style={inputStyle} />
-        </label>
-      </div>
-      {error && <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>{error}</p>}
-      <button type="submit" disabled={saving} className="w-full py-3 rounded-xl font-bold text-sm disabled:opacity-50"
-        style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
-        {saving ? 'Creando…' : 'Crear evento'}
-      </button>
-    </form>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-sm font-semibold block mb-1.5">Fecha</span>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} required className={inputCls} />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold block mb-1.5">IVA %</span>
+            <input value={iva} onChange={e => setIva(e.target.value)} inputMode="decimal" className={inputCls} />
+          </label>
+        </div>
+        {error && <p role="alert" className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>{error}</p>}
+        <button type="submit" disabled={saving} className="w-full min-h-12 rounded-xl font-bold disabled:opacity-50"
+          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+          {saving ? 'Creando…' : 'Crear evento'}
+        </button>
+      </form>
+    </details>
   )
 }

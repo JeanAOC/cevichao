@@ -20,12 +20,12 @@ export default function CancelOrderButton() {
     return (
       <div className="flex gap-2">
         <button onClick={handleCancel} disabled={loading}
-          className="flex-1 py-2 rounded-xl font-bold text-sm disabled:opacity-50"
-          style={{ background: 'var(--danger)', color: 'white' }}>
+          className="flex-1 min-h-11 rounded-xl font-bold text-sm disabled:opacity-50"
+          style={{ background: 'var(--danger)', color: 'var(--danger-fg)' }}>
           {loading ? 'Cancelando…' : 'Sí, cancelar'}
         </button>
         <button onClick={() => setConfirm(false)}
-          className="flex-1 py-2 rounded-xl font-bold text-sm border"
+          className="flex-1 min-h-11 rounded-xl font-bold text-sm border"
           style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
           No
         </button>
@@ -36,12 +36,12 @@ export default function CancelOrderButton() {
   return (
     <div className="flex gap-2 pt-1">
       <Link href="/pedir"
-        className="flex-1 py-2 rounded-xl font-bold text-sm text-center border transition-colors"
+        className="flex-1 min-h-11 inline-flex items-center justify-center rounded-xl font-bold text-sm text-center border transition-colors"
         style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
         Editar pedido
       </Link>
       <button onClick={() => setConfirm(true)}
-        className="flex-1 py-2 rounded-xl font-bold text-sm border"
+        className="flex-1 min-h-11 rounded-xl font-bold text-sm border"
         style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
         Cancelar pedido
       </button>

@@ -10,14 +10,14 @@ import FilterBar from '@/components/FilterBar'
 export const revalidate = 0
 
 
-function SauceChips({ o }: { o: Order }) {
+function SauceChips({ o, hideEmpty }: { o: Order; hideEmpty?: boolean }) {
   const sauces = [
     { label: 'Tomate', val: o.sauce_tomate },
     { label: 'Limón', val: o.sauce_limon },
     { label: 'Mostaza', val: o.sauce_mostaza },
     { label: 'Ají', val: o.sauce_aji },
   ].filter(s => s.val !== 'no')
-  if (sauces.length === 0) return <span style={{ color: 'var(--muted)' }}>—</span>
+  if (sauces.length === 0) return hideEmpty ? null : <span style={{ color: 'var(--muted)' }}>—</span>
   return (
     <div className="flex flex-wrap gap-1">
       {sauces.map(({ label, val }) => (
@@ -29,9 +29,9 @@ function SauceChips({ o }: { o: Order }) {
   )
 }
 
-function ExtraChips({ o, menu }: { o: Order; menu: MenuData }) {
+function ExtraChips({ o, menu, hideEmpty }: { o: Order; menu: MenuData; hideEmpty?: boolean }) {
   const extras = extrasOf(o)
-  if (extras.length === 0) return <span style={{ color: 'var(--muted)' }}>—</span>
+  if (extras.length === 0) return hideEmpty ? null : <span style={{ color: 'var(--muted)' }}>—</span>
   return (
     <div className="flex flex-wrap gap-1">
       {extras.map(([k, n]) => (
@@ -50,13 +50,14 @@ function YesNo({ on }: { on: boolean }) {
 function Summary({ title, items, color }: { title: string; items: [string, number][]; color: string }) {
   if (items.length === 0) return null
   return (
-    <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-      <p className="text-xs font-bold mb-3" style={{ color: 'var(--muted)' }}>{title}</p>
-      <div className="space-y-2">
+    <div className="rounded-2xl border p-4 shadow-card" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+      <p className="text-xs font-bold tracking-wide mb-1" style={{ color: 'var(--muted)' }}>{title}</p>
+      <div>
         {items.map(([label, n]) => (
-          <div key={label} className="flex items-center justify-between">
+          <div key={label} className="menu-row">
             <span className="font-semibold text-sm">{label}</span>
-            <span className="text-xl font-black" style={{ color }}>{n}</span>
+            <span className="leader" aria-hidden />
+            <span className="text-2xl font-extrabold font-display tabular-nums" style={{ color }}>{n}</span>
           </div>
         ))}
       </div>
@@ -130,7 +131,7 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-black">Tabla del día</h1>
+        <h1 className="text-3xl font-extrabold">Tabla del día</h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>
           {dateLabel} · {realOrders.length} pedido{realOrders.length !== 1 ? 's' : ''}
           {noFoodCount > 0 && ` · ${noFoodCount} no pide${noFoodCount !== 1 ? 'n' : ''}`}
@@ -149,9 +150,9 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
             <div className="grid sm:grid-cols-2 gap-3">
               <Summary title="PROTEÍNAS" color="var(--primary)"
                 items={countBy(realOrders, o => o.protein, labelMap(menu, 'protein'))} />
-              <Summary title="BASES" color="var(--accent)"
+              <Summary title="BASES" color="var(--primary)"
                 items={countBy(realOrders, o => o.base, labelMap(menu, 'base'))} />
-              <Summary title="EXTRAS" color="var(--success)" items={extrasItems.filter(([, n]) => n > 0)} />
+              <Summary title="EXTRAS" color="var(--primary)" items={extrasItems.filter(([, n]) => n > 0)} />
               <Summary title="BEBIDAS" color="var(--primary)" items={bebidaItems} />
             </div>
           )}
@@ -159,18 +160,18 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
           <FilterBar menu={menu} available={availableFilters(all)} />
 
           {/* Resultado: número grande + qué se está contando */}
-          <div className="rounded-2xl border px-5 py-4 flex items-center gap-4"
+          <div className="rounded-2xl border-2 border-dashed px-5 py-4 flex items-center gap-4"
             style={{ background: 'color-mix(in srgb, var(--primary) 8%, var(--card))', borderColor: 'var(--primary)' }}>
-            <span className="text-5xl font-black leading-none" style={{ color: 'var(--primary)' }}>{filteredReal.length}</span>
+            <span className="text-6xl font-extrabold font-display leading-none tabular-nums" style={{ color: 'var(--primary)' }}>{filteredReal.length}</span>
             <div className="flex-1 min-w-0">
-              <p className="font-black text-lg leading-tight">
+              <p className="font-extrabold font-display text-lg leading-tight">
                 {filterParts.length > 0 ? filterParts.join(' · ') : 'Pedidos en total'}
               </p>
               <p className="text-sm" style={{ color: 'var(--muted)' }}>
                 {isFiltered ? `de ${realOrders.length} pedidos en total` : `${filteredReal.length === 1 ? 'persona' : 'personas'} pidiendo hoy`}
               </p>
             </div>
-            <span className="text-xl font-black shrink-0" style={{ color: 'var(--success)' }}>${total.toFixed(2)}</span>
+            <span className="text-2xl font-extrabold font-display shrink-0" style={{ color: 'var(--accent)' }}>${total.toFixed(2)}</span>
           </div>
 
           {orders.length === 0 ? (
@@ -185,7 +186,7 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
                   const isMe = o.user_id === user!.id
                   const noFood = o.protein === 'no_por_hoy'
                   return (
-                    <div key={o.id} className="rounded-2xl border p-4 space-y-2"
+                    <div key={o.id} className="rounded-2xl border p-4 space-y-2 shadow-card"
                       style={{ background: 'var(--card)', borderColor: isMe ? 'var(--primary)' : 'var(--border)', borderWidth: isMe ? 2 : 1 }}>
                       <div className="flex items-center justify-between">
                         <span className="font-bold flex items-center gap-1.5">
@@ -207,10 +208,10 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
                             {o.extra_guacamole && <span className="font-medium" style={{ color: 'var(--success)' }}>Guacamole ✓</span>}
                             {bebidasLabel(menu, o) && <span style={{ color: 'var(--muted)' }}>🥤 {bebidasLabel(menu, o)}</span>}
                           </div>
-                          <ExtraChips o={o} menu={menu} />
-                          <SauceChips o={o} />
-                          {o.comentarios && <p className="text-xs italic" style={{ color: 'var(--muted)' }}>&quot;{o.comentarios}&quot;</p>}
-                          <p className="text-right font-black" style={{ color: 'var(--success)' }}>${Number(o.total).toFixed(2)}</p>
+                          <ExtraChips o={o} menu={menu} hideEmpty />
+                          <SauceChips o={o} hideEmpty />
+                          {o.comentarios && <p className="text-sm italic" style={{ color: 'var(--muted)' }}>&quot;{o.comentarios}&quot;</p>}
+                          <p className="text-right font-extrabold font-display text-lg" style={{ color: 'var(--accent)' }}>${Number(o.total).toFixed(2)}</p>
                         </>
                       )}
                     </div>
@@ -219,7 +220,7 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
               </div>
 
               {/* Desktop table */}
-              <div className="hidden sm:block rounded-2xl border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+              <div className="hidden sm:block rounded-2xl border overflow-hidden shadow-card" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -266,10 +267,10 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
                                 <td className="px-3 py-3 whitespace-nowrap" style={{ color: 'var(--muted)' }}>
                                   {bebidasLabel(menu, o) || '—'}
                                 </td>
-                                <td className="px-3 py-3"><SauceChips o={o} /></td>
+                                <td className="px-3 py-3 min-w-[15rem]"><SauceChips o={o} /></td>
                               </>
                             )}
-                            <td className="px-4 py-3 text-right font-bold whitespace-nowrap" style={{ color: noFood ? 'var(--muted)' : 'var(--success)' }}>
+                            <td className="px-4 py-3 text-right font-extrabold font-display whitespace-nowrap" style={{ color: noFood ? 'var(--muted)' : 'var(--accent)' }}>
                               {noFood ? '—' : `$${Number(o.total).toFixed(2)}`}
                             </td>
                           </tr>
@@ -281,7 +282,7 @@ export default async function TablaPage({ searchParams }: { searchParams: Promis
                         <td className="px-4 py-3" colSpan={8}>
                           Total — {filteredReal.length} pedido{filteredReal.length !== 1 ? 's' : ''}
                         </td>
-                        <td className="px-4 py-3 text-right" style={{ color: 'var(--success)' }}>${total.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right font-display text-lg" style={{ color: 'var(--accent)' }}>${total.toFixed(2)}</td>
                       </tr>
                     </tfoot>
                   </table>

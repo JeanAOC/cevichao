@@ -7,7 +7,7 @@ type Variant = 'primary' | 'success' | 'danger' | 'ghost'
 
 const STYLES: Record<Variant, React.CSSProperties> = {
   primary: { background: 'var(--primary)', color: 'var(--primary-fg)', border: '1.5px solid var(--primary)' },
-  success: { background: 'color-mix(in srgb, var(--success) 15%, var(--card))', color: 'var(--success)', border: '1.5px solid color-mix(in srgb, var(--success) 35%, transparent)' },
+  success: { background: 'var(--ok-bg)', color: 'var(--ok-fg)', border: '1.5px solid var(--ok-bd)' },
   danger: { background: 'transparent', color: 'var(--danger)', border: '1.5px solid var(--danger)' },
   ghost: { background: 'transparent', color: 'var(--muted)', border: '1.5px solid var(--border)' },
 }
@@ -52,7 +52,7 @@ export default function ActionButton({ endpoint, body, children, variant = 'ghos
     router.refresh()
   }
 
-  const base = `text-xs px-3 py-2 rounded-lg font-bold disabled:opacity-50 ${className}`
+  const base = `text-sm px-4 min-h-11 rounded-lg font-bold disabled:opacity-50 ${className}`
 
   if (confirming) {
     return (

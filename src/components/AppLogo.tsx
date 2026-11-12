@@ -2,13 +2,13 @@
  * Logo de «Pedidos»: un tazón de ceviche con una velita de cumpleaños (Cevichao + cumpleaños).
  * SVG en línea: se ve nítido a cualquier tamaño y en modo claro y oscuro.
  */
-export default function AppLogo({ className = '' }: { className?: string }) {
+export default function AppLogo({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg viewBox="0 0 120 120" role="img" aria-label="Pedidos: ceviche y cumpleaños" className={className}>
+    <svg viewBox="0 0 120 120" role="img" aria-label="Pedidos: ceviche y cumpleaños" className={className} style={style}>
       <defs>
         <linearGradient id="logo-bowl" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#60a5fa" />
-          <stop offset="1" stopColor="#1d4ed8" />
+          <stop offset="0" stopColor="#2fb8a4" />
+          <stop offset="1" stopColor="#0e5c52" />
         </linearGradient>
         <linearGradient id="logo-flame" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#fde047" />
@@ -22,7 +22,7 @@ export default function AppLogo({ className = '' }: { className?: string }) {
         <rect x="100" y="20" width="6" height="6" rx="1.5" fill="#34d399" transform="rotate(20 103 23)" />
         <circle cx="106" cy="46" r="2.5" fill="#fbbf24" />
         <rect x="10" y="50" width="5" height="5" rx="1.2" fill="#a78bfa" transform="rotate(-25 12.5 52.5)" />
-        <circle cx="30" cy="12" r="2.2" fill="#60a5fa" />
+        <circle cx="30" cy="12" r="2.2" fill="#2fb8a4" />
         <rect x="84" y="8" width="5" height="5" rx="1.2" fill="#f472b6" transform="rotate(35 86.5 10.5)" />
       </g>
 
@@ -45,7 +45,7 @@ export default function AppLogo({ className = '' }: { className?: string }) {
 
       {/* Tazón */}
       <path d="M18 60 H102 C102 90 84 106 60 106 C36 106 18 90 18 60 Z" fill="url(#logo-bowl)" />
-      <ellipse cx="60" cy="60" rx="42" ry="8" fill="#93c5fd" />
+      <ellipse cx="60" cy="60" rx="42" ry="8" fill="#8fdccf" />
       <path d="M30 70 C34 84 44 92 56 95" stroke="#ffffff" strokeOpacity="0.35" strokeWidth="4" strokeLinecap="round" fill="none" />
       <ellipse cx="60" cy="112" rx="22" ry="3.5" fill="#000" opacity="0.18" />
     </svg>

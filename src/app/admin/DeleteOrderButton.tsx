@@ -25,13 +25,13 @@ export default function DeleteOrderButton({ orderId }: { orderId: string }) {
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="text-xs px-3 py-1.5 rounded-lg font-bold disabled:opacity-50"
-          style={{ background: 'var(--danger)', color: 'white' }}>
+          className="text-sm px-4 min-h-11 rounded-lg font-bold disabled:opacity-50"
+          style={{ background: 'var(--danger)', color: 'var(--danger-fg)' }}>
           {loading ? '...' : 'Confirmar'}
         </button>
         <button
           onClick={() => setConfirm(false)}
-          className="text-xs px-3 py-1.5 rounded-lg font-bold border"
+          className="text-sm px-4 min-h-11 rounded-lg font-bold border"
           style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
           Cancelar
         </button>
@@ -42,8 +42,8 @@ export default function DeleteOrderButton({ orderId }: { orderId: string }) {
   return (
     <button
       onClick={() => setConfirm(true)}
-      className="text-xs px-3 py-1.5 rounded-lg font-bold border"
-      style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
+      className="text-sm px-4 min-h-11 rounded-lg font-bold"
+      style={{ color: 'var(--danger)' }}>
       Eliminar
     </button>
   )

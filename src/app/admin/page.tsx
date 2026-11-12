@@ -40,16 +40,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const dateLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1)
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-6 space-y-4 pb-10">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black">Administrar</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Menú, precios y pedidos</p>
-        </div>
-        <Link href="/pagos" className="text-xs font-bold px-3 py-2 rounded-lg border shrink-0"
-          style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
-          💰 Ir a Pagos
-        </Link>
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-3xl font-extrabold">Administrar</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Menú, precios y pedidos</p>
       </div>
 
       <TabNav ariaLabel="Secciones de administración" basePath="/admin" defaultTab="pedidos" active={tab}
@@ -58,7 +52,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       {/* Pedidos */}
       {tab === 'pedidos' && (
         <section className="space-y-3">
-          <p className="text-xs font-bold px-1" style={{ color: 'var(--muted)' }}>
+          <p className="text-xs font-bold tracking-wide px-1" style={{ color: 'var(--muted)' }}>
             {dateLabel.toUpperCase()} — {real.length} {real.length === 1 ? 'PERSONA' : 'PERSONAS'}
           </p>
           {all.length === 0 ? (
@@ -72,10 +66,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               const extras = extrasOf(o).map(([k, n]) => `${n > 1 ? `${n} × ` : ''}${labelOf(menu, 'extra', k)}`)
               const bebidas = bebidasLabel(menu, o)
               return (
-                <div key={o.id} className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                  <div className="flex items-start justify-between gap-3">
+                <div key={o.id} className="rounded-2xl border p-4 shadow-card flex items-center gap-3" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                  <div className="flex-1 min-w-0">
                     <div className="min-w-0">
-                      <p className="font-black leading-tight">{name}</p>
+                      <p className="font-extrabold font-display text-lg leading-tight">{name}</p>
                       {noFood ? (
                         <p className="text-sm" style={{ color: 'var(--muted)' }}>No pide hoy</p>
                       ) : (
@@ -92,10 +86,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                         </>
                       )}
                     </div>
-                    {!noFood && <span className="font-black text-lg shrink-0" style={{ color: 'var(--success)' }}>${Number(o.total).toFixed(2)}</span>}
+                    {!noFood && <p className="font-extrabold font-display text-lg mt-0.5" style={{ color: 'var(--accent)' }}>${Number(o.total).toFixed(2)}</p>}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Link href={`/admin/editar/${o.id}`} className="text-xs px-3 py-2 rounded-lg font-bold border"
+                  {/* Editar y Eliminar a un lado: la tarjeta mide la mitad y «Eliminar» ya no está pegado a «Editar» */}
+                  <div className="flex flex-col items-stretch gap-1 shrink-0">
+                    <Link href={`/admin/editar/${o.id}`} className="text-sm px-4 min-h-11 inline-flex items-center justify-center rounded-lg font-bold border"
                       style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
                       Editar
                     </Link>
@@ -112,7 +107,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       {kindInfo && (
         <section className="space-y-3">
           <div>
-            <h2 className="font-black text-lg">{kindInfo.icon} {kindInfo.label}</h2>
+            <h2 className="font-extrabold text-2xl">{kindInfo.icon} {kindInfo.label}</h2>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>
               Los cambios de precio valen para los pedidos nuevos; los ya hechos conservan su total.
               «Ocultar» quita la opción del menú sin borrar los pedidos que ya la usaron.

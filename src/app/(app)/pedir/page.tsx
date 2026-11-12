@@ -24,7 +24,7 @@ export default async function PedirPage() {
     return (
       <div className="text-center py-20">
         <div className="text-6xl mb-4">🔒</div>
-        <h1 className="text-xl font-black mb-2">Pedidos cerrados</h1>
+        <h1 className="text-3xl font-extrabold mb-2">Pedidos cerrados</h1>
         <p style={{ color: 'var(--muted)' }}>Ya llegaron al local. No se aceptan más cambios.</p>
       </div>
     )
@@ -33,7 +33,7 @@ export default async function PedirPage() {
   if (existing) {
     return (
       <div>
-        <h1 className="text-2xl font-black mb-1">Editar pedido</h1>
+        <h1 className="text-3xl font-extrabold mb-1">Editar pedido</h1>
         <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>Cambia lo que necesites antes de que se bloquee.</p>
         <OrderForm existing={existing} menu={menu} />
       </div>
@@ -42,7 +42,7 @@ export default async function PedirPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-black mb-1">Hacer pedido</h1>
+      <h1 className="text-3xl font-extrabold mb-1">Hacer pedido</h1>
       <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>Elige tu ceviche de hoy.</p>
       <OrderForm existing={null} menu={menu} />
     </div>

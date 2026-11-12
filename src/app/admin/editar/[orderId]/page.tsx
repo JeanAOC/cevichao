@@ -24,10 +24,10 @@ export default async function AdminEditPage({ params }: { params: Promise<{ orde
   const { data: orderProfile } = await admin.from('profiles').select('display_name').eq('id', order.user_id).single() as { data: { display_name: string } | null }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-6">
+    <div>
       <div className="mb-6">
-        <p className="text-xs font-bold mb-1" style={{ color: 'var(--muted)' }}>EDITANDO PEDIDO DE</p>
-        <h1 className="text-2xl font-black">{orderProfile?.display_name ?? 'Usuario'}</h1>
+        <p className="text-xs font-bold tracking-wide mb-1" style={{ color: 'var(--muted)' }}>EDITANDO PEDIDO DE</p>
+        <h1 className="text-3xl font-extrabold">{orderProfile?.display_name ?? 'Usuario'}</h1>
       </div>
       <OrderForm existing={order} menu={await loadMenu()} adminEdit />
     </div>

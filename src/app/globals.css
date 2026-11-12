@@ -1,48 +1,78 @@
 @import "tailwindcss";
 
+/*
+  Identidad: «puesto de ceviche». Arena cálida, verde azulado profundo (mar) y terracota (limón/ají),
+  con un toque de amarillo sol. Todos los colores salen de estas variables (claro y oscuro).
+*/
 :root {
-  --bg: #f0f9ff;
-  --card: #ffffff;
-  --border: #e0f2fe;
-  --text: #0f172a;
-  --muted: #64748b;
-  --primary: #1d4ed8;
-  --primary-fg: #ffffff;
-  --accent: #f97316;
-  --accent-fg: #ffffff;
-  --success: #16a34a;
-  --danger: #dc2626;
+  color-scheme: light;
+
+  --bg: #f8f1e4;
+  --card: #fffdf8;
+  --border: #e4d6bd;
+  --text: #1c2b2e;
+  --muted: #5b6a6c;
+
+  --primary: #0e5c52;
+  --primary-fg: #fffdf8;
+  --accent: #c2410c;
+  --accent-fg: #fffdf8;
+  --sun: #f2b134;
+  --sun-fg: #2b2100;
+  --success: #15803d;
+  --success-fg: #ffffff;
+  --danger: #b91c1c;
+  --danger-fg: #ffffff;
+
+  /* Campos de formulario: borde con contraste suficiente para verse sobre la tarjeta */
+  --field: #fbf5ea;
+  --field-bd: #9b8c73;
+  --ring: #0e5c52;
+  --awning-2: #e9c46a; /* arena: franjas terracota + arena en ambos temas (el crema se fundía con la barra) */
+  --shadow: 0 1px 0 rgb(28 43 46 / 0.04), 0 6px 18px -8px rgb(28 43 46 / 0.18);
 
   /* Estados (chips): fondo suave + texto oscuro + borde sutil */
-  --ok-bg: #dcfce7;      --ok-fg: #166534;      --ok-bd: #bbf7d0;
-  --warn-bg: #fef3c7;    --warn-fg: #92400e;    --warn-bd: #fde68a;
-  --info-bg: #dbeafe;    --info-fg: #1e40af;    --info-bd: #bfdbfe;
-  --neutral-bg: #f1f5f9; --neutral-fg: #475569; --neutral-bd: #e2e8f0;
+  --ok-bg: #dcf3e1;      --ok-fg: #14532d;      --ok-bd: #b4e2bf;
+  --warn-bg: #fde9c4;    --warn-fg: #7a3b0a;    --warn-bd: #f5cf8d;
+  --info-bg: #d3ece8;    --info-fg: #0b4a42;    --info-bd: #a9d6cf;
+  --neutral-bg: #ece4d4; --neutral-fg: #4a5557; --neutral-bd: #d9ccb3;
 
-  /* Niveles de salsa: escala amarillo → naranja → rojo */
-  --poco-bg: #fef9c3;    --poco-fg: #854d0e;    --poco-bd: #fde047;
-  --medio-bg: #ffedd5;   --medio-fg: #9a3412;   --medio-bd: #fdba74;
-  --mucho-bg: #fee2e2;   --mucho-fg: #991b1b;   --mucho-bd: #fca5a5;
+  /* Niveles de salsa: amarillo → naranja → rojo */
+  --poco-bg: #fdf0a8;    --poco-fg: #6b4e00;    --poco-bd: #ecd34f;
+  --medio-bg: #ffd9b3;   --medio-fg: #7c2d06;   --medio-bd: #f4aa66;
+  --mucho-bg: #ffcfca;   --mucho-fg: #84170f;   --mucho-bd: #f19a92;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --border: #334155;
-    --text: #f1f5f9;
-    --muted: #94a3b8;
-    --primary: #3b82f6;
-    --primary-fg: #ffffff;
-    --accent: #fb923c;
-    --accent-fg: #ffffff;
-    --success: #22c55e;
-    --danger: #ef4444;
+    color-scheme: dark;
 
-    --ok-bg: rgb(34 197 94 / 0.16);      --ok-fg: #86efac;      --ok-bd: rgb(34 197 94 / 0.35);
-    --warn-bg: rgb(251 191 36 / 0.16);   --warn-fg: #fcd34d;    --warn-bd: rgb(251 191 36 / 0.35);
-    --info-bg: rgb(96 165 250 / 0.16);   --info-fg: #93c5fd;    --info-bd: rgb(96 165 250 / 0.35);
-    --neutral-bg: rgb(148 163 184 / 0.14); --neutral-fg: #cbd5e1; --neutral-bd: rgb(148 163 184 / 0.3);
+    --bg: #0e1819;
+    --card: #162326;
+    --border: #2b3d40;
+    --text: #f3ece0;
+    --muted: #a3b3b4;
+
+    --primary: #3fc2ae;
+    --primary-fg: #05211d;
+    --accent: #ff9a5c;
+    --accent-fg: #2b1103;
+    --sun: #ffc857;
+    --success: #5ee08a;
+    --success-fg: #052613;
+    --danger: #ff8a80;
+    --danger-fg: #2b0805;
+
+    --field: #1b2b2e;
+    --field-bd: #5d7478;
+    --ring: #3fc2ae;
+    --awning-2: #e9c46a; /* arena (Sunset Boulevard): cálida junto al naranja, sin el blanco crema que desentonaba en oscuro */
+    --shadow: 0 1px 0 rgb(0 0 0 / 0.3), 0 8px 20px -10px rgb(0 0 0 / 0.6);
+
+    --ok-bg: rgb(94 224 138 / 0.14);      --ok-fg: #9cf0b6;      --ok-bd: rgb(94 224 138 / 0.35);
+    --warn-bg: rgb(255 200 87 / 0.15);    --warn-fg: #ffd98a;    --warn-bd: rgb(255 200 87 / 0.35);
+    --info-bg: rgb(63 194 174 / 0.15);    --info-fg: #8fe3d4;    --info-bd: rgb(63 194 174 / 0.35);
+    --neutral-bg: rgb(163 179 180 / 0.13); --neutral-fg: #cdd8d8; --neutral-bd: rgb(163 179 180 / 0.3);
 
     --poco-bg: rgb(250 204 21 / 0.16);   --poco-fg: #fde047;    --poco-bd: rgb(250 204 21 / 0.4);
     --medio-bg: rgb(251 146 60 / 0.18);  --medio-fg: #fdba74;   --medio-bd: rgb(251 146 60 / 0.4);
@@ -51,22 +81,34 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #0f172a;
-  --card: #1e293b;
-  --border: #334155;
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --primary: #3b82f6;
-  --primary-fg: #ffffff;
-  --accent: #fb923c;
-  --accent-fg: #ffffff;
-  --success: #22c55e;
-  --danger: #ef4444;
+  color-scheme: dark;
 
-  --ok-bg: rgb(34 197 94 / 0.16);      --ok-fg: #86efac;      --ok-bd: rgb(34 197 94 / 0.35);
-  --warn-bg: rgb(251 191 36 / 0.16);   --warn-fg: #fcd34d;    --warn-bd: rgb(251 191 36 / 0.35);
-  --info-bg: rgb(96 165 250 / 0.16);   --info-fg: #93c5fd;    --info-bd: rgb(96 165 250 / 0.35);
-  --neutral-bg: rgb(148 163 184 / 0.14); --neutral-fg: #cbd5e1; --neutral-bd: rgb(148 163 184 / 0.3);
+  --bg: #0e1819;
+  --card: #162326;
+  --border: #2b3d40;
+  --text: #f3ece0;
+  --muted: #a3b3b4;
+
+  --primary: #3fc2ae;
+  --primary-fg: #05211d;
+  --accent: #ff9a5c;
+  --accent-fg: #2b1103;
+  --sun: #ffc857;
+  --success: #5ee08a;
+  --success-fg: #052613;
+  --danger: #ff8a80;
+  --danger-fg: #2b0805;
+
+  --field: #1b2b2e;
+  --field-bd: #5d7478;
+  --ring: #3fc2ae;
+  --awning-2: #e9c46a;
+  --shadow: 0 1px 0 rgb(0 0 0 / 0.3), 0 8px 20px -10px rgb(0 0 0 / 0.6);
+
+  --ok-bg: rgb(94 224 138 / 0.14);      --ok-fg: #9cf0b6;      --ok-bd: rgb(94 224 138 / 0.35);
+  --warn-bg: rgb(255 200 87 / 0.15);    --warn-fg: #ffd98a;    --warn-bd: rgb(255 200 87 / 0.35);
+  --info-bg: rgb(63 194 174 / 0.15);    --info-fg: #8fe3d4;    --info-bd: rgb(63 194 174 / 0.35);
+  --neutral-bg: rgb(163 179 180 / 0.13); --neutral-fg: #cdd8d8; --neutral-bd: rgb(163 179 180 / 0.3);
 
   --poco-bg: rgb(250 204 21 / 0.16);   --poco-fg: #fde047;    --poco-bd: rgb(250 204 21 / 0.4);
   --medio-bg: rgb(251 146 60 / 0.18);  --medio-fg: #fdba74;   --medio-bd: rgb(251 146 60 / 0.4);
@@ -74,13 +116,94 @@
 }
 
 body {
-  background: var(--bg);
+  background-color: var(--bg);
+  /* Papel punteado, como una carta de restaurante */
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--text) 7%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
   color: var(--text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Títulos con personalidad (la fuente la carga layout.tsx) */
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), var(--font-body), system-ui, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 button, a, select, [role="button"] {
   cursor: pointer;
+}
+button:disabled { cursor: not-allowed; }
+
+/* Foco visible para quien navega con teclado */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Campos: fondo y borde propios con contraste (los componentes pintaban borde casi igual a la tarjeta).
+   !important porque varios componentes ponen su color en línea. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([data-own-style]),
+select:not([data-own-style]),
+textarea:not([data-own-style]) {
+  background-color: var(--field) !important;
+  border: 1.5px solid var(--field-bd) !important;
+  color: var(--text);
+}
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.8; }
+
+/* En celular los campos van a 16 px: con menos, iPhone hace zoom al tocarlos */
+@media (max-width: 639px) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
+/* Alto de campos/botones que se ajusta a la altura de la pantalla (nunca baja de 44 px: es lo mínimo táctil) */
+.fit-h { min-height: clamp(2.75rem, 7dvh, 3rem); }
+
+/* Sombra suave de tarjeta */
+@utility shadow-card {
+  box-shadow: var(--shadow);
+}
+
+/* Toldo con festón bajo la barra superior (puesto de ceviche) */
+.awning {
+  height: 12px;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 24px, var(--awning-2) 24px 48px);
+  -webkit-mask: radial-gradient(12px 12px at 12px 0, #000 calc(100% - 1px), transparent 100%) 0 0 / 24px 100% repeat-x;
+  mask: radial-gradient(12px 12px at 12px 0, #000 calc(100% - 1px), transparent 100%) 0 0 / 24px 100% repeat-x;
+  pointer-events: none;
+}
+
+/* Fila de la carta: nombre ........ precio */
+.menu-row { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.6rem 0; }
+.menu-row .leader {
+  flex: 1;
+  min-width: 1rem;
+  border-bottom: 2px dotted color-mix(in srgb, var(--text) 30%, transparent);
+  transform: translateY(-0.3em);
+}
+.menu-price {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pestañas con scroll lateral: el degradado avisa que hay más */
+.tabs-fade {
+  padding-right: 28px;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+}
+/* Igual, pero solo en celular (en pantallas grandes la lista va en vertical) */
+@media (max-width: 639px) {
+  .tabs-fade-sm {
+    padding-right: 28px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  }
 }
 
 /* Llama del logo: se mece y se estira un poco, sin bajar la opacidad (así no se ve apagada) */
@@ -90,6 +213,7 @@ button, a, select, [role="button"] {
 }
 @media (prefers-reduced-motion: no-preference) {
   .logo-flame { animation: flame-flicker 1.4s ease-in-out infinite; }
+  button:active:not(:disabled), a.press:active { transform: scale(0.98); }
 }
 @keyframes flame-flicker {
   0%, 100% { transform: scale(1, 1) rotate(0deg); }
@@ -103,17 +227,17 @@ button, a, select, [role="button"] {
   display: inline-flex;
   align-items: center;
   gap: 0.3em;
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem 0.55rem;
   border-radius: 9999px;
   border: 1px solid var(--c-bd);
   background: var(--c-bg);
   color: var(--c-fg);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.25;
   white-space: nowrap;
 }
-.chip-sm { font-size: 0.625rem; padding: 0 0.375rem; }
+.chip-sm { font-size: 0.6875rem; padding: 0 0.4rem; }
 .chip-ok      { --c-bg: var(--ok-bg);      --c-fg: var(--ok-fg);      --c-bd: var(--ok-bd); }
 .chip-warn    { --c-bg: var(--warn-bg);    --c-fg: var(--warn-fg);    --c-bd: var(--warn-bd); }
 .chip-info    { --c-bg: var(--info-bg);    --c-fg: var(--info-fg);    --c-bd: var(--info-bd); }

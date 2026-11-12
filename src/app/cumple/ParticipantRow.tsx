@@ -35,12 +35,12 @@ export default function ParticipantRow({ row, eventId, ivaRate }: { row: RowData
             {row.attending ? (row.description || 'Sin descripción') : 'Esta vez no'}
           </p>
         </div>
-        <span className="font-black shrink-0" style={{ color: 'var(--success)' }}>{money(row.subtotal)}</span>
+        <span className="font-extrabold font-display shrink-0" style={{ color: 'var(--accent)' }}>{money(row.subtotal)}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => setEditing(v => !v)}
-          className="text-xs px-3 py-2 rounded-lg font-bold border"
+          className="text-sm px-4 min-h-11 rounded-lg font-bold border"
           style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
           {editing ? 'Cerrar' : 'Editar'}
         </button>
@@ -54,7 +54,7 @@ export default function ParticipantRow({ row, eventId, ivaRate }: { row: RowData
       </div>
 
       {editing && (
-        <div className="rounded-xl border p-4 mt-2" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+        <div className="rounded-xl border p-4 mt-2" style={{ background: 'color-mix(in srgb, var(--primary) 5%, var(--card))', borderColor: 'var(--border)' }}>
           <OrderEditor mode="manage" eventId={eventId} ivaRate={ivaRate} orderId={row.id}
             initial={{ attending: row.attending, description: row.description, amount: row.amount, extras_amount: row.extras_amount }}
             submitLabel="Guardar cambios" onDone={() => setEditing(false)} />

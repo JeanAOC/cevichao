@@ -50,12 +50,12 @@ export default async function MiPedidoPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-black">Mi pedido</h1>
+        <h1 className="text-3xl font-extrabold">Mi pedido</h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>{dateLabel}</p>
       </div>
 
-      <div className="rounded-2xl p-5 border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-        <h2 className="font-bold text-sm mb-3" style={{ color: 'var(--muted)' }}>MI PEDIDO HOY</h2>
+      <div className="rounded-2xl p-5 border shadow-card" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+        <h2 className="font-bold text-xs tracking-wide mb-3" style={{ color: 'var(--muted)' }}>MI PEDIDO HOY</h2>
         {myOrder ? (
           <div className="space-y-3">
             {myOrder.protein === 'no_por_hoy' ? (
@@ -67,11 +67,11 @@ export default async function MiPedidoPage() {
               <>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xl font-black">{labelOf(menu, 'protein', myOrder.protein)}</p>
+                    <p className="text-2xl font-extrabold font-display">{labelOf(menu, 'protein', myOrder.protein)}</p>
                     <p className="text-sm" style={{ color: 'var(--muted)' }}>{labelOf(menu, 'base', myOrder.base)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-black" style={{ color: 'var(--success)' }}>${Number(myOrder.total).toFixed(2)}</p>
+                    <p className="text-3xl font-extrabold font-display" style={{ color: 'var(--accent)' }}>${Number(myOrder.total).toFixed(2)}</p>
                     <span className={`chip ${myOrder.paid ? 'chip-ok' : 'chip-warn'}`}>
                       {myOrder.paid ? '✓ Pagado' : 'Pendiente'}
                     </span>
@@ -119,8 +119,8 @@ export default async function MiPedidoPage() {
             <p className="text-4xl mb-3">🍽️</p>
             <p className="font-medium mb-4" style={{ color: 'var(--muted)' }}>Aún no has pedido hoy</p>
             <Link href="/pedir"
-              className="inline-block px-6 py-3 rounded-xl font-bold text-sm transition-colors"
-              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+              className="press inline-flex items-center min-h-12 px-6 rounded-xl font-bold transition-colors"
+              style={{ background: 'var(--accent)', color: 'var(--accent-fg)' }}>
               Hacer pedido 🐟
             </Link>
           </div>
@@ -129,8 +129,8 @@ export default async function MiPedidoPage() {
 
       {/* Cómo pagar */}
       {mustPay && (hasPayInfo || payerProfile) && (
-        <div className="rounded-2xl p-5 border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-          <h2 className="font-bold text-sm mb-3" style={{ color: 'var(--muted)' }}>CÓMO PAGAR</h2>
+        <div className="rounded-2xl p-5 border shadow-card" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          <h2 className="font-bold text-xs tracking-wide mb-3" style={{ color: 'var(--muted)' }}>CÓMO PAGAR</h2>
           {payerProfile && (
             <p className="mb-3">
               Págale <span className="font-black">${Number(myOrder!.total).toFixed(2)}</span> a{' '}

@@ -40,14 +40,15 @@ export default async function HistorialPage({ searchParams }: PageProps) {
   const pagado = realOrders.filter(o => o.paid).reduce((s, o) => s + Number(o.total), 0)
 
   function fmtDate(d: string) {
-    return new Date(d + 'T12:00:00').toLocaleDateString('es-EC', {
+    const s = new Date(d + 'T12:00:00').toLocaleDateString('es-EC', {
       weekday: 'long', day: 'numeric', month: 'short',
     })
+    return s.charAt(0).toUpperCase() + s.slice(1)
   }
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-black">Historial</h1>
+      <h1 className="text-3xl font-extrabold">Historial</h1>
 
       {uniqueDates.length === 0 ? (
         <div className="text-center py-16" style={{ color: 'var(--muted)' }}>
@@ -57,10 +58,10 @@ export default async function HistorialPage({ searchParams }: PageProps) {
       ) : (
         <div className="grid sm:grid-cols-[200px_1fr] gap-4 items-start">
           {/* Sidebar de fechas */}
-          <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-x-visible pb-1 sm:pb-0">
+          <div className="tabs-fade-sm flex sm:flex-col gap-2 overflow-x-auto sm:overflow-x-visible pb-1 sm:pb-0">
             {uniqueDates.map(d => (
               <Link key={d} href={`/historial?fecha=${d}`}
-                className="shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors whitespace-nowrap"
+                className="shrink-0 px-4 min-h-11 inline-flex items-center rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
                 style={selectedDate === d
                   ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
                   : { background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)' }}>
@@ -73,7 +74,7 @@ export default async function HistorialPage({ searchParams }: PageProps) {
           {selectedDate && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="font-black capitalize">{fmtDate(selectedDate)}</h2>
+                <h2 className="font-extrabold text-xl">{fmtDate(selectedDate)}</h2>
                 <div className="text-sm" style={{ color: 'var(--muted)' }}>
                   {realOrders.length} pedidos · ${totalDia.toFixed(2)}
                 </div>
@@ -82,13 +83,13 @@ export default async function HistorialPage({ searchParams }: PageProps) {
               {orders.map(o => {
                 const noFood = o.protein === 'no_por_hoy'
                 return (
-                  <div key={o.id} className="rounded-2xl border p-4"
+                  <div key={o.id} className="rounded-2xl border p-4 shadow-card"
                     style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-bold">{o.profile?.display_name ?? 'Usuario'}</span>
                       <div className="flex items-center gap-2">
                         {!noFood && (
-                          <span className="font-black" style={{ color: 'var(--success)' }}>${Number(o.total).toFixed(2)}</span>
+                          <span className="font-extrabold font-display" style={{ color: 'var(--accent)' }}>${Number(o.total).toFixed(2)}</span>
                         )}
                         <span className={`chip ${noFood ? 'chip-neutral' : o.paid ? 'chip-ok' : 'chip-warn'}`}>
                           {noFood ? 'No pidió' : o.paid ? 'Pagado' : 'Pendiente'}
@@ -104,13 +105,14 @@ export default async function HistorialPage({ searchParams }: PageProps) {
                           {extrasOf(o).map(([k, n]) => (
                             <span key={k} className="chip chip-info">+{n > 1 ? `${n} × ` : ''}{labelOf(menu, 'extra', k)}</span>
                           ))}
-                          {bebidasLabel(menu, o) && <span>🥤 {bebidasLabel(menu, o)}</span>}
-                          {o.sauce_tomate !== 'no' && <span>Tomate {o.sauce_tomate}</span>}
-                          {o.sauce_limon !== 'no' && <span>Limón {o.sauce_limon}</span>}
-                          {o.sauce_mostaza !== 'no' && <span>Mostaza {o.sauce_mostaza}</span>}
-                          {o.sauce_aji !== 'no' && <span>Ají {o.sauce_aji}</span>}
+                          {bebidasLabel(menu, o) && <span className="chip chip-neutral">🥤 {bebidasLabel(menu, o)}</span>}
+                          {/* Mismos chips de color que la Tabla: amarillo = poco, naranja = medio, rojo = mucho */}
+                          {o.sauce_tomate !== 'no' && <span className={`chip chip-${o.sauce_tomate}`}>Tomate · {o.sauce_tomate}</span>}
+                          {o.sauce_limon !== 'no' && <span className={`chip chip-${o.sauce_limon}`}>Limón · {o.sauce_limon}</span>}
+                          {o.sauce_mostaza !== 'no' && <span className={`chip chip-${o.sauce_mostaza}`}>Mostaza · {o.sauce_mostaza}</span>}
+                          {o.sauce_aji !== 'no' && <span className={`chip chip-${o.sauce_aji}`}>Ají · {o.sauce_aji}</span>}
                         </div>
-                        {o.comentarios && <p className="italic">"{o.comentarios}"</p>}
+                        {o.comentarios && <p className="italic">&quot;{o.comentarios}&quot;</p>}
                       </div>
                     )}
                   </div>
@@ -121,7 +123,7 @@ export default async function HistorialPage({ searchParams }: PageProps) {
                 <div className="rounded-xl p-3 flex justify-between text-sm font-bold"
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   <span>Cobrado / Total</span>
-                  <span style={{ color: 'var(--success)' }}>${pagado.toFixed(2)} / ${totalDia.toFixed(2)}</span>
+                  <span style={{ color: 'var(--accent)' }}>${pagado.toFixed(2)} / ${totalDia.toFixed(2)}</span>
                 </div>
               )}
             </div>

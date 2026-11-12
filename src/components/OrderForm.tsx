@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   SAUCE_AMOUNTS, SAUCE_AMOUNT_LABELS,
@@ -18,6 +18,8 @@ const SAUCES: { key: keyof Pick<OrderInput, 'sauce_tomate' | 'sauce_limon' | 'sa
   { key: 'sauce_aji', label: 'Ají' },
 ]
 
+const ON_BG = 'color-mix(in srgb, var(--primary) 10%, var(--card))'
+
 /** Fila con cantidad (− n +), pensada para tocar con el dedo: botones de 44 px. */
 function QtyRow({ label, price, qty, max, onChange }: {
   label: string; price: number; qty: number; max: number; onChange: (q: number) => void
@@ -26,11 +28,11 @@ function QtyRow({ label, price, qty, max, onChange }: {
   return (
     <div className="flex items-center justify-between gap-3 pl-4 pr-3 py-3 rounded-2xl border-2 transition-all"
       style={on
-        ? { borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 8%, transparent)' }
+        ? { borderColor: 'var(--primary)', background: ON_BG }
         : { borderColor: 'var(--border)', background: 'var(--card)' }}>
       <div className="min-w-0">
         <p className="font-semibold leading-tight" style={{ color: on ? 'var(--primary)' : 'var(--text)' }}>{label}</p>
-        <p className="text-sm font-black" style={{ color: 'var(--success)' }}>
+        <p className="text-sm font-extrabold" style={{ color: 'var(--accent)' }}>
           ${price.toFixed(2)}
           {qty > 1 && <span className="font-semibold" style={{ color: 'var(--muted)' }}> · ${(price * qty).toFixed(2)}</span>}
         </p>
@@ -39,10 +41,10 @@ function QtyRow({ label, price, qty, max, onChange }: {
         <button type="button" onClick={() => onChange(qty - 1)} disabled={qty === 0}
           aria-label={`Quitar ${label}`}
           className="w-11 h-11 rounded-xl border-2 text-2xl font-bold leading-none flex items-center justify-center transition-opacity disabled:opacity-30 select-none"
-          style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card)' }}>
+          style={{ borderColor: 'var(--field-bd)', color: 'var(--text)', background: 'var(--card)' }}>
           −
         </button>
-        <span className="w-8 text-center text-lg font-black tabular-nums" style={{ color: on ? 'var(--primary)' : 'var(--muted)' }}>{qty}</span>
+        <span className="w-8 text-center text-lg font-black tabular-nums" aria-live="polite" style={{ color: on ? 'var(--primary)' : 'var(--muted)' }}>{qty}</span>
         <button type="button" onClick={() => onChange(qty + 1)} disabled={qty >= max}
           aria-label={`Agregar ${label}`}
           className="w-11 h-11 rounded-xl text-2xl font-bold leading-none flex items-center justify-center transition-opacity disabled:opacity-30 select-none"
@@ -54,17 +56,42 @@ function QtyRow({ label, price, qty, max, onChange }: {
   )
 }
 
+/** Opción única (proteína, base): tarjeta grande con marca de selección. */
+function ChoiceCard({ label, price, selected, plus, onSelect }: {
+  label: string; price: number; selected: boolean; plus?: boolean; onSelect: () => void
+}) {
+  return (
+    <button type="button" onClick={onSelect} aria-pressed={selected}
+      className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl border-2 transition-all text-left"
+      style={selected
+        ? { borderColor: 'var(--primary)', background: ON_BG }
+        : { borderColor: 'var(--border)', background: 'var(--card)' }}>
+      <span className="w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center text-sm font-black"
+        style={selected
+          ? { background: 'var(--primary)', borderColor: 'var(--primary)', color: 'var(--primary-fg)' }
+          : { borderColor: 'var(--field-bd)', color: 'transparent' }} aria-hidden>
+        ✓
+      </span>
+      <span className="flex-1 text-base font-bold" style={{ color: selected ? 'var(--primary)' : 'var(--text)' }}>{label}</span>
+      {price > 0
+        ? <span className="text-xl font-extrabold font-display" style={{ color: 'var(--accent)' }}>{plus ? '+' : ''}${price.toFixed(2)}</span>
+        : <span className="text-sm font-semibold" style={{ color: 'var(--muted)' }}>incluido</span>}
+    </button>
+  )
+}
+
 interface Props {
   existing: Order | null
   menu: MenuData
   adminEdit?: boolean
 }
 
-const AMOUNT_COLORS: Record<SauceAmount, string> = {
-  no: '',
-  poco: 'bg-yellow-400 text-black',
-  medio: 'bg-orange-500 text-white',
-  mucho: 'bg-red-600 text-white',
+/** Cada nivel de salsa tiene su color (de menos a más picante), con tokens del tema. */
+const SAUCE_ACTIVE: Record<SauceAmount, React.CSSProperties> = {
+  no: { background: 'var(--text)', color: 'var(--card)', borderColor: 'var(--text)' },
+  poco: { background: 'var(--sun)', color: 'var(--sun-fg)', borderColor: 'var(--sun)' },
+  medio: { background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'var(--accent)' },
+  mucho: { background: 'var(--danger)', color: 'var(--danger-fg)', borderColor: 'var(--danger)' },
 }
 
 export default function OrderForm({ existing, menu, adminEdit }: Props) {
@@ -105,6 +132,9 @@ export default function OrderForm({ existing, menu, adminEdit }: Props) {
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Al cambiar de paso se vuelve arriba (en celular, si no, se queda a media pantalla)
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }, [step])
 
   const noFood = protein === 'no_por_hoy'
   const total = calculateTotal(menu, { protein, base, extras, bebidas })
@@ -178,121 +208,99 @@ export default function OrderForm({ existing, menu, adminEdit }: Props) {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">✅</div>
-        <p className="text-xl font-black">¡Pedido guardado!</p>
+        <p className="text-2xl font-extrabold">¡Pedido guardado!</p>
         <p className="mt-1" style={{ color: 'var(--muted)' }}>Redirigiendo…</p>
       </div>
     )
   }
 
-  // Steps: 0=Proteína, 1=Maní/Guac, 2=Base, 3=Extras, 4=Bebida, 5=Salsas+Confirmar
+  // Pasos: 0=Proteína, 1=Maní/Guac, 2=Base, 3=Extras, 4=Bebida, 5=Salsas+Confirmar
   const steps = noFood
     ? ['Proteína']
-    : ['Proteína', 'Maní & Guac', 'Base', 'Extras', 'Bebida', 'Salsas & Confirmar']
+    : ['Proteína', 'Maní/Guac', 'Base', 'Extras', 'Bebida', 'Salsas']
+  const isLast = step === steps.length - 1
 
   return (
     <div className="space-y-6">
-      {/* Progress */}
-      <div className="flex gap-2">
-        {steps.map((s, i) => (
-          <div key={s} className="flex-1 flex flex-col items-center gap-1">
-            <div className="w-full h-1.5 rounded-full transition-colors"
-              style={{ background: i <= step ? 'var(--primary)' : 'var(--border)' }} />
-            <span className="text-[10px] font-medium" style={{ color: i === step ? 'var(--primary)' : 'var(--muted)' }}>{s}</span>
-          </div>
-        ))}
-      </div>
+      {/* Progreso: se puede volver tocando un paso ya visto */}
+      <ol className="flex gap-1.5" aria-label="Pasos del pedido">
+        {steps.map((s, i) => {
+          const reachable = i < step
+          return (
+            <li key={s} className="flex-1">
+              <button type="button" disabled={!reachable} onClick={() => setStep(i)}
+                aria-current={i === step ? 'step' : undefined}
+                className="w-full flex flex-col items-center gap-1 pt-1 disabled:cursor-default">
+                <span className="w-full h-2 rounded-full transition-colors"
+                  style={{ background: i <= step ? 'var(--primary)' : 'var(--border)' }} />
+                <span className="text-xs font-semibold leading-tight text-center" style={{ color: i === step ? 'var(--primary)' : 'var(--muted)' }}>{s}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
 
-      {/* Step 0: Proteína */}
+      {/* Paso 0: Proteína */}
       {step === 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-bold">¿Qué proteína quieres?</h2>
+          <h2 className="text-2xl font-extrabold">¿Qué proteína quieres?</h2>
           {proteinOptions.map(p => (
-            <button key={p.key} onClick={() => setProtein(p.key)}
-              className="w-full flex items-center justify-between px-5 py-4 rounded-2xl border-2 transition-all font-semibold"
-              style={protein === p.key
-                ? { borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 8%, transparent)', color: 'var(--primary)' }
-                : { borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--text)' }}>
-              <span className="text-base">{p.label}</span>
-              {p.price > 0
-                ? <span className="text-xl font-black" style={{ color: protein === p.key ? 'var(--primary)' : 'var(--success)' }}>${p.price.toFixed(2)}</span>
-                : <span className="text-sm" style={{ color: 'var(--muted)' }}>—</span>
-              }
-            </button>
+            <ChoiceCard key={p.key} label={p.label} price={p.price} selected={protein === p.key} onSelect={() => setProtein(p.key)} />
           ))}
-          <button onClick={() => noFood ? save() : setStep(1)}
-            className="w-full py-3.5 rounded-2xl font-bold text-base mt-2 transition-opacity disabled:opacity-60"
-            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
-            disabled={saving}>
-            {noFood ? (saving ? 'Guardando…' : 'Confirmar') : 'Siguiente →'}
-          </button>
         </div>
       )}
 
-      {/* Step 1: Maní / Guacamole (gratis, los pone la señora) */}
+      {/* Paso 1: Maní / Guacamole (gratis, los pone la señora) */}
       {step === 1 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-bold">¿Le pone la señora?</h2>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>Sin costo adicional</p>
+          <div>
+            <h2 className="text-2xl font-extrabold">¿Le pone la señora?</h2>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>Sin costo adicional</p>
+          </div>
           {([
             { label: 'Maní', value: extraMani, set: setExtraMani },
             { label: 'Guacamole', value: extraGuacamole, set: setExtraGuacamole },
           ] as const).map(({ label, value, set }) => (
-            <div key={label} className="rounded-2xl border-2 px-5 py-4 transition-all"
+            <div key={label} className="rounded-2xl border-2 px-4 py-4"
               style={{ borderColor: 'var(--border)', background: 'var(--card)' }}>
-              <p className="font-semibold mb-3">{label}</p>
-              <div className="flex gap-3">
-                <button onClick={() => set(true)}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all border-2"
+              <p className="font-bold mb-3">{label}</p>
+              <div className="grid grid-cols-2 gap-3" role="group" aria-label={label}>
+                <button type="button" onClick={() => set(true)} aria-pressed={value}
+                  className="min-h-12 rounded-xl font-bold border-2 transition-all"
                   style={value
-                    ? { borderColor: 'var(--accent)', background: 'var(--accent)', color: 'white' }
-                    : { borderColor: 'var(--border)', background: 'transparent', color: 'var(--muted)' }}>
+                    ? { borderColor: 'var(--success)', background: 'var(--success)', color: 'var(--success-fg)' }
+                    : { borderColor: 'var(--field-bd)', background: 'transparent', color: 'var(--text)' }}>
                   Sí
                 </button>
-                <button onClick={() => set(false)}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all border-2"
+                {/* «No» es una elección normal, no un error: va en neutro */}
+                <button type="button" onClick={() => set(false)} aria-pressed={!value}
+                  className="min-h-12 rounded-xl font-bold border-2 transition-all"
                   style={!value
-                    ? { borderColor: 'var(--danger)', background: 'var(--danger)', color: 'white' }
-                    : { borderColor: 'var(--border)', background: 'transparent', color: 'var(--muted)' }}>
+                    ? { borderColor: 'var(--muted)', background: 'var(--muted)', color: 'var(--card)' }
+                    : { borderColor: 'var(--field-bd)', background: 'transparent', color: 'var(--text)' }}>
                   No
                 </button>
               </div>
             </div>
           ))}
-          <div className="flex gap-3">
-            <button onClick={() => setStep(0)} className="flex-1 py-3 rounded-2xl font-bold border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>← Atrás</button>
-            <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-2xl font-bold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Siguiente →</button>
-          </div>
         </div>
       )}
 
-      {/* Step 2: Base */}
+      {/* Paso 2: Base */}
       {step === 2 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-bold">¿Con qué base?</h2>
+          <h2 className="text-2xl font-extrabold">¿Con qué base?</h2>
           {baseOptions.map(b => (
-            <button key={b.key} onClick={() => setBase(b.key)}
-              className="w-full flex items-center justify-between px-5 py-4 rounded-2xl border-2 transition-all font-semibold text-left"
-              style={base === b.key
-                ? { borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 8%, transparent)', color: 'var(--primary)' }
-                : { borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--text)' }}>
-              <span>{b.label}</span>
-              {b.price > 0 && (
-                <span className="font-black" style={{ color: base === b.key ? 'var(--primary)' : 'var(--success)' }}>+${b.price.toFixed(2)}</span>
-              )}
-            </button>
+            <ChoiceCard key={b.key} label={b.label} price={b.price} plus selected={base === b.key} onSelect={() => setBase(b.key)} />
           ))}
-          <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-2xl font-bold border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>← Atrás</button>
-            <button onClick={() => setStep(3)} className="flex-1 py-3 rounded-2xl font-bold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Siguiente →</button>
-          </div>
         </div>
       )}
 
-      {/* Step 3: Extras */}
+      {/* Paso 3: Extras */}
       {step === 3 && (
         <div className="space-y-3">
           <div>
-            <h2 className="text-lg font-bold">¿Extras?</h2>
+            <h2 className="text-2xl font-extrabold">¿Extras?</h2>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>Elige cuántos quieres de cada uno. Si no quieres, sigue.</p>
           </div>
           {extraOptions.length === 0 && (
@@ -304,21 +312,17 @@ export default function OrderForm({ existing, menu, adminEdit }: Props) {
           ))}
           {totalExtras > 0 && (
             <p className="text-right text-sm font-bold" style={{ color: 'var(--muted)' }}>
-              {totalExtras} extra{totalExtras !== 1 ? 's' : ''} · <span style={{ color: 'var(--success)' }}>${extrasSubtotal.toFixed(2)}</span>
+              {totalExtras} extra{totalExtras !== 1 ? 's' : ''} · <span style={{ color: 'var(--accent)' }}>${extrasSubtotal.toFixed(2)}</span>
             </p>
           )}
-          <div className="flex gap-3">
-            <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-2xl font-bold border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>← Atrás</button>
-            <button onClick={() => setStep(4)} className="flex-1 py-3 rounded-2xl font-bold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Siguiente →</button>
-          </div>
         </div>
       )}
 
-      {/* Step 4: Bebida */}
+      {/* Paso 4: Bebida */}
       {step === 4 && (
         <div className="space-y-3">
           <div>
-            <h2 className="text-lg font-bold">¿Bebidas?</h2>
+            <h2 className="text-2xl font-extrabold">¿Bebidas?</h2>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>Puedes elegir varias. Si no quieres, sigue.</p>
           </div>
           {bebidaOptions.length === 0 && (
@@ -330,37 +334,30 @@ export default function OrderForm({ existing, menu, adminEdit }: Props) {
           ))}
           {totalBebidas > 0 && (
             <p className="text-right text-sm font-bold" style={{ color: 'var(--muted)' }}>
-              {totalBebidas} bebida{totalBebidas !== 1 ? 's' : ''} · <span style={{ color: 'var(--success)' }}>${bebidasSubtotal.toFixed(2)}</span>
+              {totalBebidas} bebida{totalBebidas !== 1 ? 's' : ''} · <span style={{ color: 'var(--accent)' }}>${bebidasSubtotal.toFixed(2)}</span>
             </p>
           )}
-          <div className="flex gap-3">
-            <button onClick={() => setStep(3)} className="flex-1 py-3 rounded-2xl font-bold border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>← Atrás</button>
-            <button onClick={() => setStep(5)} className="flex-1 py-3 rounded-2xl font-bold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Siguiente →</button>
-          </div>
         </div>
       )}
 
-      {/* Step 5: Salsas + Confirmar */}
+      {/* Paso 5: Salsas + resumen */}
       {step === 5 && (
         <div className="space-y-5">
-          <h2 className="text-lg font-bold">Salsas <span className="text-sm font-normal" style={{ color: 'var(--muted)' }}>(gratis)</span></h2>
+          <h2 className="text-2xl font-extrabold">Salsas <span className="text-base font-normal" style={{ color: 'var(--muted)' }}>(gratis)</span></h2>
           {SAUCES.map(({ key, label }) => (
             <div key={key}>
-              <p className="text-sm font-semibold mb-2">{label}</p>
-              <div className="flex gap-2">
+              <p className="text-sm font-bold mb-2">{label}</p>
+              <div className="grid grid-cols-4 gap-2" role="group" aria-label={label}>
                 {SAUCE_AMOUNTS.map(amt => {
                   const active = sauces[key] === amt
-                  const colorCls = active && amt !== 'no' ? AMOUNT_COLORS[amt] : ''
                   return (
-                    <button key={amt}
+                    <button key={amt} type="button"
                       onClick={() => setSauces(s => ({ ...s, [key]: amt }))}
-                      className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border-2 ${colorCls}`}
+                      aria-pressed={active}
+                      className="min-h-11 rounded-xl text-sm font-bold transition-all border-2"
                       style={active
-                        ? amt === 'no'
-                          ? { borderColor: 'transparent', background: 'var(--border)', color: 'var(--muted)' }
-                          : { borderColor: 'transparent' }
-                        : { borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--muted)' }
-                      }>
+                        ? SAUCE_ACTIVE[amt]
+                        : { borderColor: 'var(--field-bd)', background: 'var(--card)', color: 'var(--text)' }}>
                       {SAUCE_AMOUNT_LABELS[amt]}
                     </button>
                   )
@@ -370,20 +367,20 @@ export default function OrderForm({ existing, menu, adminEdit }: Props) {
           ))}
 
           <div>
-            <label className="text-sm font-semibold block mb-2">Comentarios</label>
+            <label htmlFor="comentarios" className="text-sm font-bold block mb-2">Comentarios</label>
             <textarea
+              id="comentarios"
               value={comentarios}
               onChange={e => setComentarios(e.target.value)}
               placeholder="Sin pepas, extra limón…"
               rows={2}
-              className="w-full px-4 py-3 rounded-xl border text-sm outline-none resize-none"
-              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              className="w-full px-4 py-3 rounded-xl text-sm resize-none"
             />
           </div>
 
-          {/* Resumen */}
-          <div className="rounded-2xl p-4 border" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-            <h3 className="font-bold text-sm mb-2" style={{ color: 'var(--muted)' }}>RESUMEN</h3>
+          {/* Resumen: como un ticket */}
+          <div className="rounded-2xl p-4 border-2 border-dashed" style={{ background: 'var(--card)', borderColor: 'var(--field-bd)' }}>
+            <h3 className="font-bold text-sm mb-2 tracking-wide" style={{ color: 'var(--muted)' }}>TU PEDIDO</h3>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between"><span>{labelOf(menu, 'protein', protein)}</span><span>${priceOf(menu, 'protein', protein).toFixed(2)}</span></div>
               {priceOf(menu, 'base', base) > 0 && <div className="flex justify-between" style={{ color: 'var(--muted)' }}><span>+ {labelOf(menu, 'base', base)}</span><span>${priceOf(menu, 'base', base).toFixed(2)}</span></div>}
@@ -399,28 +396,45 @@ export default function OrderForm({ existing, menu, adminEdit }: Props) {
                   <span>+ {n} × {labelOf(menu, 'bebida', k)}</span><span>${(priceOf(menu, 'bebida', k) * n).toFixed(2)}</span>
                 </div>
               ))}
-              <div className="border-t pt-2 mt-2 flex justify-between font-black text-lg" style={{ borderColor: 'var(--border)', color: 'var(--success)' }}>
+              <div className="border-t border-dashed pt-2 mt-2 flex justify-between font-display font-extrabold text-xl" style={{ borderColor: 'var(--field-bd)', color: 'var(--primary)' }}>
                 <span>Total</span><span>${total.toFixed(2)}</span>
               </div>
             </div>
           </div>
 
           {error && (
-            <div className="px-4 py-3 rounded-xl text-sm font-medium" style={{ background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)', border: '1px solid var(--danger)' }}>
+            <div role="alert" className="px-4 py-3 rounded-xl text-sm font-medium" style={{ background: 'color-mix(in srgb, var(--danger) 12%, var(--card))', color: 'var(--danger)', border: '1px solid var(--danger)' }}>
               Error: {error}
             </div>
           )}
-
-          <div className="flex gap-3">
-            <button onClick={() => setStep(4)} className="flex-1 py-3 rounded-2xl font-bold border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>← Atrás</button>
-            <button onClick={save} disabled={saving}
-              className="flex-1 py-3 rounded-2xl font-bold transition-opacity disabled:opacity-60"
-              style={{ background: 'var(--success)', color: 'white' }}>
-              {saving ? 'Guardando…' : existing ? '✓ Actualizar' : '✓ Confirmar'}
-            </button>
-          </div>
         </div>
       )}
+
+      {/* En celular, la barra queda fija arriba de la navegación: el total siempre se ve y «Siguiente» siempre está a mano */}
+      <div className="h-28 sm:hidden" aria-hidden />
+      <div className={`fixed inset-x-0 z-30 px-3 sm:static sm:px-0 sm:mt-2 bottom-[calc(3.5rem+env(safe-area-inset-bottom))]`}>
+        <div className="mx-auto max-w-4xl flex items-center gap-3 rounded-2xl border p-2.5 pl-3 shadow-card"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          {step > 0 && (
+            <button type="button" onClick={() => setStep(step - 1)} aria-label="Paso anterior"
+              className="w-12 h-12 shrink-0 rounded-xl border-2 text-xl font-bold flex items-center justify-center"
+              style={{ borderColor: 'var(--field-bd)', color: 'var(--text)' }}>
+              ←
+            </button>
+          )}
+          <div className="flex-1 min-w-0 leading-tight">
+            <p className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>Tu pedido</p>
+            <p className="font-display text-2xl font-extrabold tabular-nums" style={{ color: 'var(--primary)' }}>${total.toFixed(2)}</p>
+          </div>
+          <button type="button" onClick={isLast ? save : () => setStep(step + 1)} disabled={saving}
+            className="min-h-12 px-6 rounded-xl font-bold text-base shrink-0 transition-opacity disabled:opacity-60"
+            style={isLast
+              ? { background: 'var(--success)', color: 'var(--success-fg)' }
+              : { background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+            {isLast ? (saving ? 'Guardando…' : existing ? '✓ Actualizar' : '✓ Confirmar') : 'Siguiente →'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

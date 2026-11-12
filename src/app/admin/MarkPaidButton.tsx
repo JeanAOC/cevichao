@@ -27,10 +27,11 @@ export default function MarkPaidButton({ orderId, paid }: Props) {
     <button
       onClick={toggle}
       disabled={loading}
-      className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all disabled:opacity-60"
+      className="px-4 min-h-11 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
       style={paid
-        ? { background: 'var(--success)', color: 'white' }
-        : { border: '2px solid var(--border)', color: 'var(--muted)' }
+        // Ya pagado: aviso suave (no un botón verde sólido repetido en cada fila)
+        ? { background: 'var(--ok-bg)', color: 'var(--ok-fg)', border: '1.5px solid var(--ok-bd)' }
+        : { border: '2px solid var(--primary)', color: 'var(--primary)' }
       }>
       {loading ? '…' : paid ? '✓ Pagado' : 'Marcar pagado'}
     </button>

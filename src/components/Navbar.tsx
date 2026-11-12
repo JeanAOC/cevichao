@@ -46,71 +46,80 @@ export default function Navbar({ displayName, items, brand, showModules = true }
   }
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+  // Con un solo destino no hace falta menú: el nombre del módulo ya lo dice todo
+  const showNav = items.length > 1
 
   return (
     <>
-      {/* Top bar */}
-      <header className="sticky top-0 z-40 border-b" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-        <div className="max-w-4xl mx-auto px-6 h-14 flex items-center gap-6">
-          {/* Logo */}
+      {/* Barra superior, con toldo de puesto de ceviche */}
+      <header className="sticky top-0 z-40 relative border-b" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xl">{brand.icon}</span>
-            <span className="font-black text-lg" style={{ color: 'var(--primary)' }}>{brand.name}</span>
+            <span className="text-xl" aria-hidden>{brand.icon}</span>
+            <span className="font-display font-extrabold text-lg" style={{ color: 'var(--primary)' }}>{brand.name}</span>
           </div>
 
-          {/* Nav links — desktop */}
-          <nav className="hidden sm:flex items-center gap-1 flex-1">
-            {items.map(({ href, label }) => {
-              const active = isActive(href)
-              return (
-                <Link key={href} href={href}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
-                  style={active
-                    ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
-                    : { color: 'var(--muted)' }}>
-                  {label}
-                </Link>
-              )
-            })}
-          </nav>
+          {/* Enlaces — escritorio */}
+          {showNav && (
+            <nav className="hidden sm:flex items-center gap-1 flex-1" aria-label="Secciones">
+              {items.map(({ href, label }) => {
+                const active = isActive(href)
+                return (
+                  <Link key={href} href={href}
+                    aria-current={active ? 'page' : undefined}
+                    className="px-4 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors"
+                    style={active
+                      ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                      : { color: 'var(--muted)' }}>
+                    {label}
+                  </Link>
+                )
+              })}
+            </nav>
+          )}
 
-          {/* Right: módulos + name + theme + salir */}
           <div className="flex items-center gap-2 ml-auto shrink-0">
             {showModules && (
               <Link href="/inicio" title="Cambiar de módulo"
-                className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors"
+                className="h-10 inline-flex items-center text-xs font-bold px-3 rounded-lg border transition-colors"
                 style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
-                ⇄<span className="hidden sm:inline"> Módulos</span>
+                ⇄<span className="ml-1">Módulos</span>
               </Link>
             )}
-            <span className="text-sm font-medium hidden sm:block">{displayName}</span>
+            <span className="text-sm font-semibold hidden md:block">{displayName}</span>
             <button onClick={toggleTheme}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-base border transition-colors"
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-base border transition-colors"
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+              aria-label={dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               title={dark ? 'Modo claro' : 'Modo oscuro'}>
               {dark ? '☀️' : '🌙'}
             </button>
             <button onClick={logout}
-              className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors"
-              style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
+              className="h-10 text-xs font-bold px-3 rounded-lg transition-colors"
+              style={{ color: 'var(--muted)' }}>
               Salir
             </button>
           </div>
         </div>
+        <div className="awning absolute left-0 right-0 top-full" aria-hidden />
       </header>
 
-      {/* Bottom nav — mobile only */}
-      {items.length > 0 && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t sm:hidden"
+      {/* Barra inferior — solo celular */}
+      {showNav && (
+        <nav aria-label="Secciones" className="fixed bottom-0 left-0 right-0 z-40 border-t sm:hidden pb-[env(safe-area-inset-bottom)]"
           style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-          <div className="flex">
+          <div className="flex h-14">
             {items.map(({ href, label, icon }) => {
               const active = isActive(href)
               return (
                 <Link key={href} href={href}
-                  className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium transition-colors"
+                  aria-current={active ? 'page' : undefined}
+                  className="flex-1 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors"
                   style={{ color: active ? 'var(--primary)' : 'var(--muted)' }}>
-                  <span className="text-lg leading-none">{icon}</span>
+                  <span className="text-lg leading-none px-3 py-0.5 rounded-full"
+                    style={active ? { background: 'color-mix(in srgb, var(--primary) 14%, transparent)' } : undefined}>
+                    {icon}
+                  </span>
                   {label}
                 </Link>
               )
