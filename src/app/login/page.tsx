@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import AppLogo from '@/components/AppLogo'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -32,7 +33,7 @@ export default function LoginPage() {
       if (error) { setError(error.message); setLoading(false); return }
     }
 
-    router.push('/dashboard')
+    router.push('/inicio')
     router.refresh()
   }
 
@@ -41,9 +42,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="text-6xl mb-3">🐟</div>
-          <h1 className="text-3xl font-black" style={{ color: 'var(--primary)' }}>Cevichao</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>Pedidos del equipo</p>
+          <AppLogo className="w-28 h-28 mx-auto mb-2" />
+          <h1 className="text-3xl font-black" style={{ color: 'var(--primary)' }}>Pedidos</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>Cevichao y cumpleaños del equipo</p>
         </div>
 
         <div className="rounded-2xl p-6 shadow-lg" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>

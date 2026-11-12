@@ -17,7 +17,15 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-export default function AccountForm({ initial }: { initial: PaymentAccount | null }) {
+interface Props {
+  initial: PaymentAccount | null
+  /** Dónde se guarda. Por defecto, los datos de cobro de Cevichao. */
+  endpoint?: string
+  /** Campos extra para el cuerpo de la petición (por ejemplo { action: 'savePayment', eventId }). */
+  extra?: Record<string, unknown>
+}
+
+export default function AccountForm({ initial, endpoint = '/api/pagos/payment-info', extra }: Props) {
   const router = useRouter()
   const start = initial ?? emptyAccount()
   const knownBank = (EC_BANKS as readonly string[]).includes(start.bank)
@@ -36,10 +44,10 @@ export default function AccountForm({ initial }: { initial: PaymentAccount | nul
     setSaving(true)
     setMessage(null)
     const bank = bankSelect === OTHER_BANK ? bankOther.trim() : bankSelect
-    const res = await fetch('/api/pagos/payment-info', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ account: { bank, accountType, holder, accountNumber, idNumber } }),
+      body: JSON.stringify({ ...extra, account: { bank, accountType, holder, accountNumber, idNumber } }),
     })
     setSaving(false)
     if (!res.ok) {

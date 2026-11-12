@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Cevichao',
-  description: 'Pedidos de ceviche para el equipo',
+  title: 'Pedidos',
+  description: 'Pedidos de ceviche y cuentas de cumpleaños del equipo',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

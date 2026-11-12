@@ -5,23 +5,21 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-interface NavbarProps {
-  displayName: string
-  /** Ve el botón Pagos (cobradores y admins). */
-  canCollect: boolean
+export interface NavItem {
+  href: string
+  label: string
+  icon: string
 }
 
-const NAV = [
-  { href: '/dashboard', label: 'Menú', icon: '📖' },
-  { href: '/pedir', label: 'Pedir', icon: '🐟' },
-  { href: '/mi-pedido', label: 'Mi pedido', icon: '🧾' },
-  { href: '/tabla', label: 'Tabla', icon: '📋' },
-  { href: '/historial', label: 'Historial', icon: '📅' },
-]
-const PAGOS = { href: '/pagos', label: 'Pagos', icon: '💰' }
+interface NavbarProps {
+  displayName: string
+  items: NavItem[]
+  brand: { icon: string; name: string }
+  /** Muestra el botón para volver a la pantalla de módulos (/inicio). */
+  showModules?: boolean
+}
 
-export default function Navbar({ displayName, canCollect }: NavbarProps) {
-  const items = canCollect ? [...NAV, PAGOS] : NAV
+export default function Navbar({ displayName, items, brand, showModules = true }: NavbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -47,6 +45,8 @@ export default function Navbar({ displayName, canCollect }: NavbarProps) {
     router.push('/login')
   }
 
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+
   return (
     <>
       {/* Top bar */}
@@ -54,14 +54,14 @@ export default function Navbar({ displayName, canCollect }: NavbarProps) {
         <div className="max-w-4xl mx-auto px-6 h-14 flex items-center gap-6">
           {/* Logo */}
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xl">🐟</span>
-            <span className="font-black text-lg" style={{ color: 'var(--primary)' }}>Cevichao</span>
+            <span className="text-xl">{brand.icon}</span>
+            <span className="font-black text-lg" style={{ color: 'var(--primary)' }}>{brand.name}</span>
           </div>
 
           {/* Nav links — desktop */}
           <nav className="hidden sm:flex items-center gap-1 flex-1">
             {items.map(({ href, label }) => {
-              const active = pathname === href
+              const active = isActive(href)
               return (
                 <Link key={href} href={href}
                   className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
@@ -74,8 +74,15 @@ export default function Navbar({ displayName, canCollect }: NavbarProps) {
             })}
           </nav>
 
-          {/* Right: admin + name + theme + salir */}
+          {/* Right: módulos + name + theme + salir */}
           <div className="flex items-center gap-2 ml-auto shrink-0">
+            {showModules && (
+              <Link href="/inicio" title="Cambiar de módulo"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors"
+                style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+                ⇄<span className="hidden sm:inline"> Módulos</span>
+              </Link>
+            )}
             <span className="text-sm font-medium hidden sm:block">{displayName}</span>
             <button onClick={toggleTheme}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-base border transition-colors"
@@ -93,22 +100,24 @@ export default function Navbar({ displayName, canCollect }: NavbarProps) {
       </header>
 
       {/* Bottom nav — mobile only */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t sm:hidden"
-        style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-        <div className="flex">
-          {items.map(({ href, label, icon }) => {
-            const active = pathname === href
-            return (
-              <Link key={href} href={href}
-                className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium transition-colors"
-                style={{ color: active ? 'var(--primary)' : 'var(--muted)' }}>
-                <span className="text-lg leading-none">{icon}</span>
-                {label}
-              </Link>
-            )
-          })}
-        </div>
-      </nav>
+      {items.length > 0 && (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t sm:hidden"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          <div className="flex">
+            {items.map(({ href, label, icon }) => {
+              const active = isActive(href)
+              return (
+                <Link key={href} href={href}
+                  className="flex-1 flex flex-col items-center py-2 gap-0.5 text-xs font-medium transition-colors"
+                  style={{ color: active ? 'var(--primary)' : 'var(--muted)' }}>
+                  <span className="text-lg leading-none">{icon}</span>
+                  {label}
+                </Link>
+              )
+            })}
+          </div>
+        </nav>
+      )}
     </>
   )
 }

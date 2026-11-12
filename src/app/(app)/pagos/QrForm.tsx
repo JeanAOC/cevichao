@@ -24,7 +24,15 @@ function resizeToDataUrl(file: File): Promise<string> {
   })
 }
 
-export default function QrForm({ initialQr }: { initialQr: string }) {
+interface Props {
+  initialQr: string
+  /** Dónde se guarda. Por defecto, los datos de cobro de Cevichao. */
+  endpoint?: string
+  /** Campos extra para el cuerpo de la petición (por ejemplo { action: 'savePayment', eventId }). */
+  extra?: Record<string, unknown>
+}
+
+export default function QrForm({ initialQr, endpoint = '/api/pagos/payment-info', extra }: Props) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   // undefined = sin cambios, null = quitar, string = nuevo QR (todavía sin guardar)
@@ -50,10 +58,10 @@ export default function QrForm({ initialQr }: { initialQr: string }) {
     if (qr === undefined) return
     setSaving(true)
     setMessage(null)
-    const res = await fetch('/api/pagos/payment-info', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ qr }),
+      body: JSON.stringify({ ...extra, qr }),
     })
     setSaving(false)
     if (!res.ok) {

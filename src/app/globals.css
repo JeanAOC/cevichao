@@ -83,6 +83,21 @@ button, a, select, [role="button"] {
   cursor: pointer;
 }
 
+/* Llama del logo: se mece y se estira un poco, sin bajar la opacidad (así no se ve apagada) */
+.logo-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .logo-flame { animation: flame-flicker 1.4s ease-in-out infinite; }
+}
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); }
+  25% { transform: scale(0.94, 1.07) rotate(-2deg); }
+  50% { transform: scale(1.05, 0.95) rotate(1.5deg); }
+  75% { transform: scale(0.96, 1.05) rotate(-1deg); }
+}
+
 /* Chips semánticos: mismo aspecto en claro y oscuro, solo cambian los tokens */
 .chip {
   display: inline-flex;
