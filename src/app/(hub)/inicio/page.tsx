@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getStaff } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { loadMenu } from '@/lib/menu-server'
 import { labelOf } from '@/lib/menu'
 import { todayDate } from '@/lib/date'
@@ -29,6 +30,14 @@ export default async function InicioPage() {
       ? 'Hoy no pides'
       : `Hoy: ${labelOf(menu, 'protein', myOrder.protein)} · $${Number(myOrder.total).toFixed(2)}${myOrder.paid ? ' · pagado ✓' : ''}`
 
+  // Mi pedido de hoy en Cevichocho (si la tabla todavía no existe, simplemente no hay dato)
+  const { data: chochoOrder } = staff
+    ? await createAdminClient().from('chocho_orders').select('total, paid').eq('user_id', staff.userId).eq('order_date', today).maybeSingle()
+    : { data: null }
+  const chochoStatus = !chochoOrder
+    ? 'Todavía no pides hoy'
+    : `Hoy: $${Number(chochoOrder.total).toFixed(2)}${chochoOrder.paid ? ' · pagado ✓' : ''}`
+
   const dateLabel = new Date(today + 'T12:00:00').toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const modules = [
@@ -37,6 +46,12 @@ export default async function InicioPage() {
       text: 'Pedir el ceviche del día, ver la tabla y los pagos.',
       status: cevichaoStatus,
       bg: 'var(--primary)', fg: 'var(--primary-fg)', cta: myOrder ? 'Ver mi pedido →' : 'Pedir ahora →',
+    },
+    {
+      href: '/cevichocho', icon: '🥣', title: 'Cevichocho',
+      text: 'Pedir tu cevichocho, ver la tabla del día y los pagos.',
+      status: chochoStatus,
+      bg: 'var(--sun)', fg: 'var(--sun-fg)', cta: chochoOrder ? 'Ver mi pedido →' : 'Pedir ahora →',
     },
     {
       href: '/cumple', icon: '🎂', title: 'Cumpleaños',
@@ -58,7 +73,7 @@ export default async function InicioPage() {
         <p className="mt-2 text-lg" style={{ color: 'var(--muted)' }}>¿Qué vamos a hacer hoy?</p>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {modules.map(m => (
           <Link key={m.href} href={m.href}
             className="press group relative overflow-hidden rounded-3xl p-6 min-h-56 flex flex-col justify-end shadow-card transition-transform hover:-translate-y-1"

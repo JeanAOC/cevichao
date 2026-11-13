@@ -4,8 +4,10 @@ import { getStaff } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { computeSummary, type EventOrderRow, type EventRow, type Line } from '@/lib/cumple'
 import { parseAccount } from '@/lib/payment'
+import { ensureEveryoneInEvent } from '@/lib/cumple-server'
 import { money } from '@/lib/menu'
-import TabNav from '@/components/TabNav'
+import type { NavItem } from '@/components/Navbar'
+import CumpleShell from '../CumpleShell'
 import ActionButton from '@/components/ActionButton'
 import PaymentAccountView from '@/components/PaymentAccountView'
 import AccountForm from '@/app/(app)/pagos/AccountForm'
@@ -69,6 +71,9 @@ export default async function EventPage({ params, searchParams }: {
   if (error || !eventData) notFound()
   const event = eventData as EventRow
 
+  // Todos pagan por defecto: en un evento abierto, cualquier cuenta que falte (por ejemplo, quien se registró después) entra sola
+  if (event.status === 'open') await ensureEveryoneInEvent(id)
+
   const { data: rowsData } = await supabase.from('event_orders').select('*').eq('event_id', id).order('created_at', { ascending: true })
   const rows = (rowsData ?? []) as EventOrderRow[]
 
@@ -86,8 +91,8 @@ export default async function EventPage({ params, searchParams }: {
   const tabs = [
     { id: 'pedido', label: 'Mi pedido', icon: '📝' },
     ...(splitPay ? [
-      { id: 'debes', label: 'Lo que debes', icon: '💰', badge: me && !me.paidNow && me.total > 0 ? '!' : undefined },
-      { id: 'pagar', label: 'Cómo pagar', icon: '💳' },
+      { id: 'debes', label: 'Debes', icon: '💰', badge: me && !me.paidNow && me.total > 0 ? '!' : undefined },
+      { id: 'pagar', label: 'Pagar', icon: '💳' },
       // Si el organizador te eligió como quien pagó la cuenta, aquí pones dónde te depositan
       ...(me?.isPayer ? [{ id: 'micuenta', label: 'Mi cuenta', icon: '🏦', badge: event.payment_info || event.payment_qr ? undefined : '!' }] : []),
     ] : []),
@@ -100,12 +105,22 @@ export default async function EventPage({ params, searchParams }: {
   ]
   const tab = tabs.some(t => t.id === rawTab) ? (rawTab as string) : 'pedido'
 
+  // Las secciones van en la barra superior (como en Cevichao); «Mi pedido» es la de por defecto y no lleva ?tab=
+  const navItems: NavItem[] = tabs.map(t => ({
+    href: t.id === 'pedido' ? `/cumple/${event.id}` : `/cumple/${event.id}?tab=${t.id}`,
+    label: t.label, icon: t.icon, badge: t.badge,
+  }))
+
   // Personas de la app que todavía no están en el evento (para que el organizador las agregue)
   let missingPeople: { id: string; name: string }[] = []
+  // Cuentas con las que se puede vincular un invitado sin cuenta: las que aún no están o solo tienen una fila vacía
+  let linkable: { id: string; name: string }[] = []
   if (organizer && tab === 'organizar') {
     const { data: profiles } = await supabase.from('profiles').select('id, display_name').order('display_name')
     const inEvent = new Set(rows.map(r => r.user_id).filter(Boolean))
     missingPeople = (profiles ?? []).filter(p => !inEvent.has(p.id)).map(p => ({ id: p.id, name: p.display_name }))
+    const emptyRows = new Set(rows.filter(r => r.user_id && !r.attending && !r.description && !Number(r.amount) && !Number(r.extras_amount) && !r.paid && !r.is_birthday).map(r => r.user_id))
+    linkable = (profiles ?? []).filter(p => !inEvent.has(p.id) || emptyRows.has(p.id)).map(p => ({ id: p.id, name: p.display_name }))
   }
 
   // Solo la primera letra en mayúscula («Jueves, 12 de noviembre de 2026»); `capitalize` de CSS ponía «De» en cada palabra
@@ -166,10 +181,15 @@ export default async function EventPage({ params, searchParams }: {
   else if (!hasPayData) noPayMessage = 'El organizador todavía no puso los datos de pago. Vuelve a revisar más tarde.'
 
   return (
+    <CumpleShell displayName={staff.displayName} items={navItems}>
     <div className="space-y-4">
       <div>
-        <Link href="/cumple" className="text-sm font-semibold" style={{ color: 'var(--muted)' }}>← Eventos</Link>
-        <div className="flex items-start justify-between gap-3 mt-1">
+        <Link href="/cumple"
+          className="inline-flex items-center gap-1.5 min-h-11 px-4 rounded-xl border text-sm font-bold shadow-card transition-colors"
+          style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--primary)' }}>
+          <span aria-hidden>←</span> Eventos
+        </Link>
+        <div className="flex items-start justify-between gap-3 mt-3">
           <div className="min-w-0">
             <h1 className="text-3xl font-extrabold truncate">🎂 {event.name}</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>{dateLabel}</p>
@@ -187,27 +207,20 @@ export default async function EventPage({ params, searchParams }: {
         </div>
       </div>
 
-      <TabNav ariaLabel="Secciones del evento" basePath={`/cumple/${event.id}`} defaultTab="pedido" active={tab} tabs={tabs} />
-
       {/* ───────── Mi pedido ───────── */}
       {tab === 'pedido' && (
         <>
           <Card title="Mi pedido" hint={closed ? 'Este evento está cerrado: ya no se pueden hacer cambios.' : 'Pon lo que vas a pedir y cuánto cuesta.'}>
             {closed ? (
               me
-                ? <p className="text-sm">{me.attending ? me.description : 'Esta vez no'}</p>
+                ? <p className="text-sm">{me.attending ? me.description : 'Sin pedido'}</p>
                 : <p className="text-sm" style={{ color: 'var(--muted)' }}>No hiciste pedido en este evento.</p>
             ) : (
               <div className="space-y-4">
                 <OrderEditor key={me?.id ?? 'new'} mode="me" eventId={event.id} ivaRate={ivaRate}
                   initial={me ? { attending: me.attending, description: me.description, amount: me.amount, extras_amount: me.extras_amount } : undefined}
                   submitLabel={me ? 'Actualizar mi pedido' : 'Guardar mi pedido'} />
-                {me && !me.paid && (
-                  <ActionButton endpoint="/api/cumple/me" body={{ action: 'remove', eventId: event.id }}
-                    variant="danger" confirmText="Sí, quitar mi pedido">
-                    Quitar mi pedido
-                  </ActionButton>
-                )}
+                {/* Sin «Quitar mi pedido»: todos están en el evento y pagan la parte del cumpleañero; para no pedir se elige «Esta vez no». */}
               </div>
             )}
           </Card>
@@ -267,8 +280,8 @@ export default async function EventPage({ params, searchParams }: {
                   <li key={l.id} className="py-3 border-t first:border-t-0 flex items-start justify-between gap-3" style={{ borderColor: 'var(--border)' }}>
                     <div className="min-w-0">
                       <p className="font-bold leading-tight flex flex-wrap items-center gap-1.5">{l.name} <Chips l={l} /></p>
-                      <p className="text-sm" style={{ color: 'var(--muted)' }}>{l.attending ? l.description : 'Esta vez no'}</p>
-                      {l.attending && <p className="text-xs" style={{ color: 'var(--muted)' }}>Pedido {money(l.subtotal)}{l.guestShare > 0 ? ` + ${money(l.guestShare)} del cumpleañero` : ''}</p>}
+                      <p className="text-sm" style={{ color: 'var(--muted)' }}>{l.attending ? l.description : 'Sin pedido'}</p>
+                      {(l.attending || l.guestShare > 0) && <p className="text-xs" style={{ color: 'var(--muted)' }}>Pedido {money(l.subtotal)}{l.guestShare > 0 ? ` + ${money(l.guestShare)} del cumpleañero` : ''}</p>}
                     </div>
                     <div className="text-right shrink-0">
                       {l.is_birthday
@@ -367,8 +380,9 @@ export default async function EventPage({ params, searchParams }: {
             ) : (
               <ul>
                 {summary.lines.map(l => (
-                  <ParticipantRow key={l.id} eventId={event.id} ivaRate={ivaRate}
+                  <ParticipantRow key={l.id} eventId={event.id} ivaRate={ivaRate} accounts={linkable}
                     row={{
+                      hasAccount: !!l.user_id,
                       id: l.id, name: l.name, attending: l.attending, description: l.description,
                       amount: l.amount, extras_amount: l.extras_amount, is_birthday: l.is_birthday,
                       subtotal: l.subtotal, isPayer: l.isPayer,
@@ -378,11 +392,12 @@ export default async function EventPage({ params, searchParams }: {
             )}
           </Card>
 
-          <Card title="Agregar persona" hint="Para alguien que no respondió, o un invitado que no tiene cuenta.">
+          <Card title="Agregar invitado" hint="Todas las cuentas de la app ya están en el evento. Aquí solo agregas a alguien que no tiene cuenta.">
             <AddPerson eventId={event.id} ivaRate={ivaRate} people={missingPeople} />
           </Card>
         </>
       )}
     </div>
+    </CumpleShell>
   )
 }

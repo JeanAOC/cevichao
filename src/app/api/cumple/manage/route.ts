@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireOrganizer } from '@/lib/auth'
 import { parseAmount } from '@/lib/cumple'
 import { sanitizeAccount } from '@/lib/payment'
+import { ensureEveryoneInEvent } from '@/lib/cumple-server'
 import { NextResponse } from 'next/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -21,7 +22,7 @@ const validDate = (v: unknown): v is string => typeof v === 'string' && DATE.tes
 /**
  * Acciones del organizador sobre eventos de cumpleaños (solo organizadores y admins):
  *  createEvent, updateEvent, deleteEvent, saveOrder, deleteOrder, setBirthday,
- *  setPayer, setPaid, markAllPaid, savePayment
+ *  setPayer, setPaid, markAllPaid, savePayment, linkAccount
  */
 export async function POST(req: Request) {
   const auth = await requireOrganizer()
@@ -44,7 +45,33 @@ export async function POST(req: Request) {
         .insert({ name, event_date: body.eventDate, iva_rate: iva, created_by: auth.staff.userId })
         .select('id').single()
       if (error) return dbError(error)
+      // Todos los del equipo quedan en el evento desde el inicio: aunque no pidan nada, pagan la parte del cumpleañero.
+      await ensureEveryoneInEvent(data.id)
       return NextResponse.json({ ok: true, id: data.id })
+    }
+
+    // Une un invitado (sin cuenta) con la cuenta real de esa persona, para que no quede duplicada
+    case 'linkAccount': {
+      if (!isUuid(body.orderId) || !isUuid(body.userId)) return err('Datos inválidos')
+      const { data: guest } = await admin.from('event_orders').select('id, event_id, user_id').eq('id', body.orderId).maybeSingle()
+      if (!guest) return err('Esa persona no está en el evento', 404)
+      if (guest.user_id) return err('Esa persona ya tiene cuenta vinculada')
+      const { data: profile } = await admin.from('profiles').select('display_name').eq('id', body.userId).maybeSingle()
+      if (!profile) return err('Esa cuenta no existe')
+
+      // Si la cuenta ya tiene una fila automática vacía, se descarta; si ya tiene su propio pedido, no se mezcla
+      const { data: existing } = await admin.from('event_orders')
+        .select('id, attending, description, amount, extras_amount, paid, is_birthday')
+        .eq('event_id', guest.event_id).eq('user_id', body.userId).maybeSingle()
+      if (existing) {
+        const empty = !existing.attending && !existing.description && !Number(existing.amount) && !Number(existing.extras_amount) && !existing.paid && !existing.is_birthday
+        if (!empty) return err(`${profile.display_name} ya puso su propio pedido: quita el invitado repetido en lugar de unirlos`)
+        const { error: delError } = await admin.from('event_orders').delete().eq('id', existing.id)
+        if (delError) return dbError(delError)
+      }
+      const { error } = await admin.from('event_orders').update({ user_id: body.userId, name: profile.display_name }).eq('id', guest.id)
+      if (error) return dbError(error)
+      return ok
     }
 
     case 'updateEvent': {

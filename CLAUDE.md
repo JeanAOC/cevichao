@@ -35,6 +35,14 @@ Todo el texto de la interfaz está en español (Ecuador). Los comandos de verifi
 Grupos de layout: `(app)` = Cevichao con su navbar, `(hub)` = `/inicio`, `cumple/` = layout propio. El `Navbar` (`src/components/Navbar.tsx`)
 es genérico (props `items`, `brand`) y tiene el botón **⇄ Módulos**.
 
+### Módulo 🥣 Cevichocho (3.er módulo, `/cevichocho/*`)
+Como Cevichao pero el menú es una lista de platos con un precio y se pide **plato + cantidad + comentario**. Todo propio e independiente:
+`chocho_menu` (editable por admins en Pagos → Menú) y `chocho_orders` (`items` jsonb `{clave: cantidad}`, `total` calculado en el servidor, `paid`),
+migración `migrations/2026-11-15-cevichocho.sql` (la 5.ª; se corre a mano). Cierre, pagador (`YYYY-MM-DD|userId`), cuenta y QR viven en `settings`
+con claves `chocho_*` (ver `CHOCHO_KEYS` en `src/lib/chocho.ts`). Sin políticas de escritura: todo se escribe con service role desde
+`/api/chocho/order` (cada persona) y `/api/chocho/admin` (cobradores; `saveItem`/`addItem` solo admins). Páginas: menú, pedir, mi-pedido, tabla, pagos
+(pestañas cobros/pagador/cierre/datos/menú). Sin historial por ahora. Precios del menú sembrados a partir de una foto del cartel: revisar.
+
 ## Roles y permisos (`src/lib/auth.ts`)
 `getStaff()` devuelve `{ isAdmin, canCollect, canOrganize }`. Los admins son superset.
 - `profiles.is_admin` — administra menú/precios y pedidos.
@@ -70,7 +78,7 @@ Lógica en `src/lib/cumple.ts` (`computeSummary`). Verificada contra la hoja "Cu
 - **Cumpleañero(s)**: no pagan; su subtotal se divide entre todos los demás participantes ("Invitado" en el Excel). Quien dice **"Esta vez no"** paga solo esa parte.
 - **No se redondea en el medio** (igual que el Excel): solo se redondea el total de cada persona a centavos. Por eso `money()` usa `Math.round(n + EPSILON)`.
 - Quien pagó la cuenta cuenta como pagado (`events.payer_order_id`); pagado/no pagado es un booleano (sin pagos parciales).
-- Participantes = usuarios que ponen su pedido + invitados sin cuenta (`user_id` null) que agrega el organizador. Quien no responde no aparece ni paga.
+- Participantes = usuarios que ponen su pedido + invitados sin cuenta (`user_id` null) que agrega el organizador. **Todas las cuentas están siempre en el evento** como «sin pedido» (`attending=false`) y pagan la parte del cumpleañero aunque no pidan: `ensureEveryoneInEvent` (`src/lib/cumple-server.ts`) corre al crear el evento y cada vez que se abre un evento abierto (así quien se registra después entra solo). Las cuentas no se pueden quitar; solo invitados sin cuenta. `linkAccount` une un invitado con su cuenta real. Ya no existe «Quitar mi pedido» para participantes.
 - Exportar: `/api/cumple/export` genera `.xlsx` con las columnas Nombre, Pedido, Valor, Bebidas y extras, IVA, Subtotal, Invitado, Total a pagar, Pagado, Saldo, con fórmulas vivas y el cumpleañero en amarillo.
 
 ## Convenciones de UI
@@ -80,7 +88,7 @@ Lógica en `src/lib/cumple.ts` (`computeSummary`). Verificada contra la hoja "Cu
 - Pestañas con scroll lateral: clase `.tabs-fade` (degradado que avisa que hay más); `.tabs-fade-sm` solo en celular.
 - Ancho de contenido `max-w-5xl` en navbar y layouts; barra inferior móvil de 56 px (`h-14`), solo si hay más de un destino. `OrderForm` lleva una barra fija (total + Atrás/Siguiente) que se apoya sobre esa barra inferior.
 - No usar la clase `capitalize` en fechas (en español pone «De»): capitalizar solo la primera letra.
-- Pestañas: `TabNav` (en la URL `?tab=`), usado en `/pagos`, `/admin` y `/cumple/[id]`. (`/pagos` aún tiene su propia copia de ese código.)
+- Pestañas: `TabNav` (en la URL `?tab=`), usado en `/pagos` y `/admin`. (`/pagos` aún tiene su propia copia de ese código.) En `/cumple/[id]` las secciones van en la barra superior (`Navbar` con `items` que llevan `?tab=`; el activo sale de la URL; `NavItem.badge` para avisos) y cada página de cumpleaños se envuelve en `CumpleShell` (el layout solo protege con sesión).
 - Acciones de servidor desde botones: `ActionButton` (con confirmación en dos pasos opcional).
 - Mobile primero: padding 16-24 px, objetivos táctiles ≥ 44 px, pestañas con scroll horizontal.
 

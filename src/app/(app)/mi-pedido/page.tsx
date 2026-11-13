@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import type { Order } from '@/types'
 import { extrasOf, bebidasOf } from '@/lib/pricing'
@@ -27,19 +28,27 @@ export default async function MiPedidoPage() {
 
   const [{ data: myOrder }, { data: settings }] = await Promise.all([
     supabase.from('orders').select('*').eq('user_id', user!.id).eq('order_date', today).maybeSingle() as unknown as Promise<{ data: Order | null }>,
-    supabase.from('settings').select('key, value').in('key', ['orders_locked', 'payer', 'payment_info', 'payment_qr']),
+    supabase.from('settings').select('key, value').in('key', ['orders_locked']),
   ])
 
-  const s: Record<string, string> = Object.fromEntries((settings ?? []).map(r => [r.key, String(r.value ?? '')]))
-  const isLocked = s.orders_locked === 'true'
+  const isLocked = (settings ?? []).some(r => r.key === 'orders_locked' && String(r.value) === 'true')
 
-  // Datos para pagar: a quién, cuenta y QR (solo si tiene un pedido sin pagar)
-  const [payerDate, payerId] = (s.payer ?? '').split('|')
-  const payerUserId = payerDate === today && payerId ? payerId : null
+  // Datos para pagar: a quién, cuenta y QR (solo si tiene un pedido sin pagar).
+  // Se leen con permisos de servidor: la política de `settings` para usuarios normales puede esconderlos,
+  // y quien debe pagar tiene que poder verlos. Solo se lee lo necesario para pagar, y solo si debe.
   const mustPay = !!myOrder && myOrder.protein !== 'no_por_hoy' && !myOrder.paid
-  const { data: payerProfile } = mustPay && payerUserId
-    ? await supabase.from('profiles').select('display_name').eq('id', payerUserId).maybeSingle()
-    : { data: null }
+  let s: Record<string, string> = {}
+  let payerProfile: { display_name: string } | null = null
+  if (mustPay) {
+    const admin = createAdminClient()
+    const { data: payRows } = await admin.from('settings').select('key, value').in('key', ['payer', 'payment_info', 'payment_qr'])
+    s = Object.fromEntries((payRows ?? []).map(r => [r.key, String(r.value ?? '')]))
+    const [payerDate, payerId] = (s.payer ?? '').split('|')
+    if (payerDate === today && payerId) {
+      const { data } = await admin.from('profiles').select('display_name').eq('id', payerId).maybeSingle()
+      payerProfile = data
+    }
+  }
   const hasPayInfo = !!(s.payment_info || s.payment_qr)
 
   const rawLabel = new Date(today + 'T12:00:00').toLocaleDateString('es-EC', {

@@ -3,6 +3,7 @@ import { getStaff } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { todayDate } from '@/lib/date'
 import NewEventForm from './NewEventForm'
+import CumpleShell from './CumpleShell'
 
 export const revalidate = 0
 
@@ -29,6 +30,7 @@ export default async function CumplePage() {
   for (const r of orderRows ?? []) people[r.event_id] = (people[r.event_id] ?? 0) + 1
 
   return (
+    <CumpleShell displayName={staff?.displayName ?? ''} items={[{ href: '/cumple', label: 'Eventos', icon: '🎂' }]}>
     <div className="space-y-5">
       <div>
         <h1 className="text-3xl font-extrabold">Cumpleaños</h1>
@@ -86,5 +88,6 @@ export default async function CumplePage() {
 
       {staff?.canOrganize && !error && <NewEventForm today={todayDate()} defaultOpen={(events ?? []).length === 0} />}
     </div>
+    </CumpleShell>
   )
 }
