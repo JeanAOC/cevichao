@@ -7,17 +7,25 @@ import { useRouter } from 'next/navigation'
 export default function CancelOrderButton() {
   const [confirm, setConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleCancel() {
     setLoading(true)
-    await fetch('/api/orders/cancel', { method: 'POST' })
+    setError(null)
+    const res = await fetch('/api/orders/cancel', { method: 'POST' }).catch(() => null)
     setLoading(false)
+    if (!res || !res.ok) {
+      setError(res ? (await res.json().catch(() => ({}))).error ?? 'No se pudo cancelar' : 'Sin conexión')
+      return
+    }
+    setConfirm(false)
     router.refresh()
   }
 
   if (confirm) {
     return (
+      <div className="space-y-2">
       <div className="flex gap-2">
         <button onClick={handleCancel} disabled={loading}
           className="flex-1 min-h-11 rounded-xl font-bold text-sm disabled:opacity-50"
@@ -29,6 +37,8 @@ export default function CancelOrderButton() {
           style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
           No
         </button>
+      </div>
+      {error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
       </div>
     )
   }

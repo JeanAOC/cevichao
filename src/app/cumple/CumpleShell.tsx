@@ -1,4 +1,5 @@
 import Navbar, { type NavItem } from '@/components/Navbar'
+import AutoRefresh from '@/components/AutoRefresh'
 
 /**
  * Marco del módulo de cumpleaños: barra superior (con las secciones del evento, igual que Cevichao) + contenido.
@@ -14,6 +15,7 @@ export default function CumpleShell({ displayName, items, children }: {
   return (
     <div className={`min-h-screen ${multi ? 'pb-20 sm:pb-0' : ''}`}>
       <Navbar displayName={displayName} brand={{ icon: '🎂', name: 'Cumpleaños' }} items={items} />
+      <AutoRefresh />
       <main className={`max-w-5xl mx-auto px-4 sm:px-6 pt-9 ${multi ? 'pb-24 sm:pb-8' : 'pb-10'}`}>
         {children}
       </main>

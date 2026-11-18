@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Navbar, { type NavItem } from '@/components/Navbar'
 import { getStaff } from '@/lib/auth'
+import AutoRefresh from '@/components/AutoRefresh'
 
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Menú', icon: '📖' },
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen pb-20 sm:pb-0">
       <Navbar displayName={staff.displayName} brand={{ icon: '🐟', name: 'Cevichao' }}
         items={staff.canCollect ? [...NAV, PAGOS] : NAV} />
+      <AutoRefresh />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-9 pb-24 sm:pb-8">
         {children}
       </main>
