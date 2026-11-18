@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireCollector } from '@/lib/auth'
 import { todayDate } from '@/lib/date'
+import { getSavedAccount, nextPayerAccount } from '@/lib/saved-account'
 import { NextResponse } from 'next/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -35,6 +36,12 @@ export async function POST(req: Request) {
   if (userId) {
     await admin.from('orders').update({ paid: true, paid_at: new Date().toISOString() })
       .eq('user_id', userId).eq('order_date', today)
+
+    // La cuenta de cobro es de quien paga: se pone la guardada de esta persona (o queda vacía si cambió de pagador y no tiene)
+    const { data: cur } = await admin.from('settings').select('key, value').in('key', ['payment_info', 'payment_qr'])
+    const c = Object.fromEntries((cur ?? []).map(r => [r.key, String(r.value ?? '')]))
+    const next = nextPayerAccount({ info: c.payment_info ?? '', qr: c.payment_qr ?? '' }, prevId, userId, await getSavedAccount(userId))
+    if (next) await admin.from('settings').upsert([{ key: 'payment_info', value: next.info }, { key: 'payment_qr', value: next.qr }])
   }
 
   return NextResponse.json({ ok: true })

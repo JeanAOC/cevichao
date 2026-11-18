@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getStaff } from '@/lib/auth'
 import { parseAmount } from '@/lib/cumple'
 import { sanitizeAccount } from '@/lib/payment'
+import { mergeSavedAccount, type SavedAccount } from '@/lib/saved-account'
 import { NextResponse } from 'next/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -41,9 +42,12 @@ export async function POST(req: Request) {
     if (!mine || event.payer_order_id !== mine.id) return err('Solo quien pagó la cuenta puede poner los datos de cobro', 403)
     const patch: Record<string, string> = {}
     if ('account' in body) {
-      const result = sanitizeAccount(body.account)
-      if ('error' in result) return err(result.error)
-      patch.payment_info = JSON.stringify(result.account)
+      if (body.account === null) patch.payment_info = '' // borrar la cuenta
+      else {
+        const result = sanitizeAccount(body.account)
+        if ('error' in result) return err(result.error)
+        patch.payment_info = JSON.stringify(result.account)
+      }
     }
     if ('qr' in body) {
       if (body.qr === null) patch.payment_qr = ''
@@ -53,6 +57,11 @@ export async function POST(req: Request) {
     if (Object.keys(patch).length === 0) return err('No hay nada que guardar')
     const { error: payError } = await admin.from('events').update(patch).eq('id', event.id)
     if (payError) return dbError(payError)
+    // También se guarda en mi cuenta, para no escribirla otra vez la próxima vez que pague
+    const saved: Partial<SavedAccount> = {}
+    if ('payment_info' in patch) saved.info = patch.payment_info
+    if ('payment_qr' in patch) saved.qr = patch.payment_qr
+    await mergeSavedAccount(staff.userId, saved)
     return NextResponse.json({ ok: true })
   }
 

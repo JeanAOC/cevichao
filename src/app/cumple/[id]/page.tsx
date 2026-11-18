@@ -10,6 +10,7 @@ import type { NavItem } from '@/components/Navbar'
 import CumpleShell from '../CumpleShell'
 import ActionButton from '@/components/ActionButton'
 import PaymentAccountView from '@/components/PaymentAccountView'
+import PayerAccountModal from '@/components/PayerAccountModal'
 import AccountForm from '@/app/(app)/pagos/AccountForm'
 import QrForm from '@/app/(app)/pagos/QrForm'
 import OrderEditor from '../OrderEditor'
@@ -182,6 +183,11 @@ export default async function EventPage({ params, searchParams }: {
 
   return (
     <CumpleShell displayName={staff.displayName} items={navItems}>
+    {/* Me eligieron como quien pagó la cuenta y aún no hay dónde depositarme: aviso con botón a donde se pone */}
+    {me?.isPayer && !event.payment_info && !event.payment_qr && tab !== (splitPay ? 'micuenta' : 'cuenta') && (
+      <PayerAccountModal href={`/cumple/${event.id}?tab=${splitPay ? 'micuenta' : 'cuenta'}`}
+        text={`Te eligieron como quien pagó la cuenta de «${event.name}». Pon tu cuenta (o tu QR) para que los demás sepan dónde depositarte.`} />
+    )}
     <div className="space-y-4">
       <div>
         <Link href="/cumple"

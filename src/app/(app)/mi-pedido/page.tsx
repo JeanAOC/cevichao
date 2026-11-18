@@ -8,6 +8,9 @@ import { loadMenu } from '@/lib/menu-server'
 import CancelOrderButton from '@/components/CancelOrderButton'
 import PaymentAccountView from '@/components/PaymentAccountView'
 import { todayDate } from '@/lib/date'
+import { parseAccount } from '@/lib/payment'
+import AccountForm from '../pagos/AccountForm'
+import QrForm from '../pagos/QrForm'
 
 export const revalidate = 0
 
@@ -37,17 +40,15 @@ export default async function MiPedidoPage() {
   // Se leen con permisos de servidor: la política de `settings` para usuarios normales puede esconderlos,
   // y quien debe pagar tiene que poder verlos. Solo se lee lo necesario para pagar, y solo si debe.
   const mustPay = !!myOrder && myOrder.protein !== 'no_por_hoy' && !myOrder.paid
-  let s: Record<string, string> = {}
+  const admin = createAdminClient()
+  const { data: payRows } = await admin.from('settings').select('key, value').in('key', ['payer', 'payment_info', 'payment_qr'])
+  const s: Record<string, string> = Object.fromEntries((payRows ?? []).map(r => [r.key, String(r.value ?? '')]))
+  const [payerDate, payerId] = (s.payer ?? '').split('|')
+  const isPayer = payerDate === today && payerId === user!.id // hoy me eligieron pagador: pongo MI cuenta aquí
   let payerProfile: { display_name: string } | null = null
-  if (mustPay) {
-    const admin = createAdminClient()
-    const { data: payRows } = await admin.from('settings').select('key, value').in('key', ['payer', 'payment_info', 'payment_qr'])
-    s = Object.fromEntries((payRows ?? []).map(r => [r.key, String(r.value ?? '')]))
-    const [payerDate, payerId] = (s.payer ?? '').split('|')
-    if (payerDate === today && payerId) {
-      const { data } = await admin.from('profiles').select('display_name').eq('id', payerId).maybeSingle()
-      payerProfile = data
-    }
+  if (mustPay && payerDate === today && payerId) {
+    const { data } = await admin.from('profiles').select('display_name').eq('id', payerId).maybeSingle()
+    payerProfile = data
   }
   const hasPayInfo = !!(s.payment_info || s.payment_qr)
 
@@ -135,6 +136,21 @@ export default async function MiPedidoPage() {
           </div>
         )}
       </div>
+
+      {/* Soy el pagador de hoy: aquí pongo dónde quiero que me depositen */}
+      {isPayer && (
+        <section id="cuenta" className="scroll-mt-24 rounded-2xl p-5 border shadow-card space-y-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          <div>
+            <h2 className="font-extrabold text-xl">Tu cuenta para cobrar</h2>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Hoy pagaste la cuenta: los demás te depositan a ti.</p>
+          </div>
+          <AccountForm initial={parseAccount(s.payment_info)?.legacy ? null : parseAccount(s.payment_info)} />
+          <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+            <p className="text-sm font-semibold mb-3">QR de pago (opcional)</p>
+            <QrForm initialQr={s.payment_qr ?? ''} />
+          </div>
+        </section>
+      )}
 
       {/* Cómo pagar */}
       {mustPay && (hasPayInfo || payerProfile) && (

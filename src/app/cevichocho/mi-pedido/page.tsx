@@ -7,6 +7,9 @@ import { loadChochoMenu, loadChochoSettings } from '@/lib/chocho-server'
 import { money } from '@/lib/menu'
 import ActionButton from '@/components/ActionButton'
 import PaymentAccountView from '@/components/PaymentAccountView'
+import { parseAccount } from '@/lib/payment'
+import AccountForm from '@/app/(app)/pagos/AccountForm'
+import QrForm from '@/app/(app)/pagos/QrForm'
 
 export const revalidate = 0
 
@@ -86,6 +89,21 @@ export default async function ChochoMiPedidoPage() {
           </div>
         )}
       </div>
+
+      {/* Soy el pagador de hoy: aquí pongo dónde quiero que me depositen */}
+      {payerUserId && payerUserId === staff?.userId && (
+        <section id="cuenta" className="scroll-mt-24 rounded-2xl p-5 border shadow-card space-y-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+          <div>
+            <h2 className="font-extrabold text-xl">Tu cuenta para cobrar</h2>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Hoy pagaste la cuenta: los demás te depositan a ti.</p>
+          </div>
+          <AccountForm initial={parseAccount(info)?.legacy ? null : parseAccount(info)} endpoint="/api/chocho/admin" extra={{ action: 'savePayment' }} />
+          <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+            <p className="text-sm font-semibold mb-3">QR de pago (opcional)</p>
+            <QrForm initialQr={qr ?? ''} endpoint="/api/chocho/admin" extra={{ action: 'savePayment' }} />
+          </div>
+        </section>
+      )}
 
       {mustPay && (info || qr || payerProfile) && (
         <div className="rounded-2xl p-5 border shadow-card" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>

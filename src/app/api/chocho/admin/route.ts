@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { todayDate } from '@/lib/date'
 import { CHOCHO_KEYS } from '@/lib/chocho'
 import { sanitizeAccount } from '@/lib/payment'
+import { getSavedAccount, mergeSavedAccount, nextPayerAccount, type SavedAccount } from '@/lib/saved-account'
 import { NextResponse } from 'next/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -30,7 +31,6 @@ function parsePrice(v: unknown): number | null {
 export async function POST(req: Request) {
   const staff = await getStaff()
   if (!staff) return err('Unauthorized', 401)
-  if (!staff.canCollect) return err('Forbidden', 403)
 
   const body = await req.json().catch(() => null)
   if (!body || typeof body !== 'object') return err('Datos inválidos')
@@ -38,6 +38,12 @@ export async function POST(req: Request) {
   const admin = createAdminClient()
   const ok = NextResponse.json({ ok: true })
   const today = todayDate()
+
+  // Cobradores y admins hacen todo; quien es el pagador de hoy solo puede poner su cuenta (savePayment)
+  const { data: payer } = await admin.from('settings').select('value').eq('key', CHOCHO_KEYS.payer).maybeSingle()
+  const [prevDate, prevId] = String(payer?.value ?? '').split('|')
+  const payerToday = prevDate === today && prevId ? prevId : null
+  if (!staff.canCollect && !(body.action === 'savePayment' && payerToday === staff.userId)) return err('Forbidden', 403)
 
   switch (body.action) {
     case 'setPaid': {
@@ -78,6 +84,12 @@ export async function POST(req: Request) {
         const { error: payError } = await admin.from('chocho_orders')
           .update({ paid: true, paid_at: new Date().toISOString() }).eq('user_id', body.userId).eq('order_date', today)
         if (payError) return dbError(payError)
+
+        // La cuenta de cobro es de quien paga: se pone la guardada de esta persona (o queda vacía si cambió de pagador y no tiene)
+        const { data: cur } = await admin.from('settings').select('key, value').in('key', [CHOCHO_KEYS.info, CHOCHO_KEYS.qr])
+        const c = Object.fromEntries((cur ?? []).map(r => [r.key, String(r.value ?? '')]))
+        const next = nextPayerAccount({ info: c[CHOCHO_KEYS.info] ?? '', qr: c[CHOCHO_KEYS.qr] ?? '' }, prevId, body.userId, await getSavedAccount(body.userId))
+        if (next) await admin.from('settings').upsert([{ key: CHOCHO_KEYS.info, value: next.info }, { key: CHOCHO_KEYS.qr, value: next.qr }])
       }
       return ok
     }
@@ -85,9 +97,12 @@ export async function POST(req: Request) {
     case 'savePayment': {
       const rows: { key: string; value: string }[] = []
       if ('account' in body) {
-        const result = sanitizeAccount(body.account)
-        if ('error' in result) return err(result.error)
-        rows.push({ key: CHOCHO_KEYS.info, value: JSON.stringify(result.account) })
+        if (body.account === null) rows.push({ key: CHOCHO_KEYS.info, value: '' }) // borrar la cuenta
+        else {
+          const result = sanitizeAccount(body.account)
+          if ('error' in result) return err(result.error)
+          rows.push({ key: CHOCHO_KEYS.info, value: JSON.stringify(result.account) })
+        }
       }
       if ('qr' in body) {
         if (body.qr === null) rows.push({ key: CHOCHO_KEYS.qr, value: '' })
@@ -97,6 +112,12 @@ export async function POST(req: Request) {
       if (rows.length === 0) return err('No hay nada que guardar')
       const { error } = await admin.from('settings').upsert(rows)
       if (error) return err(error.message, 500)
+      // También se guarda en la cuenta de quien paga hoy, para que no la escriba de nuevo la próxima vez
+      if (payerToday) {
+        const patch: Partial<SavedAccount> = {}
+        for (const r of rows) patch[r.key === CHOCHO_KEYS.info ? 'info' : 'qr'] = r.value
+        await mergeSavedAccount(payerToday, patch)
+      }
       return ok
     }
 

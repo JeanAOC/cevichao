@@ -3,6 +3,7 @@ import { requireOrganizer } from '@/lib/auth'
 import { parseAmount } from '@/lib/cumple'
 import { sanitizeAccount } from '@/lib/payment'
 import { ensureEveryoneInEvent } from '@/lib/cumple-server'
+import { getSavedAccount, mergeSavedAccount, nextPayerAccount, type SavedAccount } from '@/lib/saved-account'
 import { NextResponse } from 'next/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -159,8 +160,20 @@ export async function POST(req: Request) {
     case 'setPayer': {
       if (!isUuid(body.eventId)) return err('Evento inválido')
       if (body.orderId !== null && !isUuid(body.orderId)) return err('Pedido inválido')
+      const { data: ev } = await admin.from('events').select('payer_order_id, payment_info, payment_qr').eq('id', body.eventId).maybeSingle()
       const { error } = await admin.from('events').update({ payer_order_id: body.orderId }).eq('id', body.eventId)
       if (error) return dbError(error)
+
+      // La cuenta de cobro es de quien paga: si esa persona ya tiene una guardada, se pone sola
+      if (body.orderId && ev) {
+        const { data: orders } = await admin.from('event_orders').select('id, user_id').in('id', [body.orderId, ev.payer_order_id ?? body.orderId])
+        const userOf = (id: string | null) => orders?.find(o => o.id === id)?.user_id ?? null
+        const newUser = userOf(body.orderId)
+        if (newUser) {
+          const next = nextPayerAccount({ info: ev.payment_info ?? '', qr: ev.payment_qr ?? '' }, userOf(ev.payer_order_id), newUser, await getSavedAccount(newUser))
+          if (next) await admin.from('events').update({ payment_info: next.info, payment_qr: next.qr }).eq('id', body.eventId)
+        }
+      }
       return ok
     }
 
@@ -187,9 +200,12 @@ export async function POST(req: Request) {
       if (!isUuid(body.eventId)) return err('Evento inválido')
       const patch: Record<string, string> = {}
       if ('account' in body) {
-        const result = sanitizeAccount(body.account)
-        if ('error' in result) return err(result.error)
-        patch.payment_info = JSON.stringify(result.account)
+        if (body.account === null) patch.payment_info = '' // borrar la cuenta
+        else {
+          const result = sanitizeAccount(body.account)
+          if ('error' in result) return err(result.error)
+          patch.payment_info = JSON.stringify(result.account)
+        }
       }
       if ('qr' in body) {
         if (body.qr === null) patch.payment_qr = ''
@@ -199,6 +215,18 @@ export async function POST(req: Request) {
       if (Object.keys(patch).length === 0) return err('No hay nada que guardar')
       const { error } = await admin.from('events').update(patch).eq('id', body.eventId)
       if (error) return dbError(error)
+
+      // También se guarda en la cuenta de quien pagó (si tiene cuenta en la app), para que no la escriba otra vez
+      const { data: ev } = await admin.from('events').select('payer_order_id').eq('id', body.eventId).maybeSingle()
+      if (ev?.payer_order_id) {
+        const { data: payerRow } = await admin.from('event_orders').select('user_id').eq('id', ev.payer_order_id).maybeSingle()
+        if (payerRow?.user_id) {
+          const saved: Partial<SavedAccount> = {}
+          if ('payment_info' in patch) saved.info = patch.payment_info
+          if ('payment_qr' in patch) saved.qr = patch.payment_qr
+          await mergeSavedAccount(payerRow.user_id, saved)
+        }
+      }
       return ok
     }
 

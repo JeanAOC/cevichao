@@ -38,6 +38,29 @@ export default function AccountForm({ initial, endpoint = '/api/pagos/payment-in
   const [idNumber, setIdNumber] = useState(start.idNumber)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  async function remove() {
+    setSaving(true)
+    setMessage(null)
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...extra, account: null }),
+    })
+    setSaving(false)
+    setConfirmDelete(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setMessage({ ok: false, text: data.error ?? 'No se pudo borrar' })
+      return
+    }
+    // Deja el formulario vacío
+    setBankSelect(''); setBankOther(''); setAccountType(emptyAccount().accountType)
+    setHolder(''); setAccountNumber(''); setIdNumber('')
+    setMessage({ ok: true, text: 'Cuenta borrada ✓' })
+    router.refresh()
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -117,6 +140,27 @@ export default function AccountForm({ initial, endpoint = '/api/pagos/payment-in
         style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
         {saving ? 'Guardando…' : 'Guardar cuenta'}
       </button>
+
+      {/* Solo si hay una cuenta guardada */}
+      {initial && (confirmDelete ? (
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={remove} disabled={saving}
+            className="min-h-11 rounded-xl font-bold text-sm disabled:opacity-50"
+            style={{ background: 'var(--danger)', color: 'var(--danger-fg)' }}>
+            Sí, borrar
+          </button>
+          <button type="button" onClick={() => setConfirmDelete(false)}
+            className="min-h-11 rounded-xl font-bold text-sm border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
+            No
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirmDelete(true)} disabled={saving}
+          className="w-full min-h-11 rounded-xl font-bold text-sm border disabled:opacity-50"
+          style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
+          Borrar cuenta
+        </button>
+      ))}
     </form>
   )
 }
