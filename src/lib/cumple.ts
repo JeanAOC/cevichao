@@ -31,9 +31,15 @@ export interface EventOrderRow {
  */
 export const DECLINED = 'Esta vez no'
 
+/** «No participo»: la persona queda fuera del evento (no aparece en el resumen ni paga nada, tampoco la parte del cumpleañero). */
+export const EXCLUDED = 'No participa'
+
+export const isExcluded = (r: Pick<EventOrderRow, 'attending' | 'description'>) => !r.attending && r.description === EXCLUDED
+
 /** Texto de lo que pidió una persona, para mostrar en pantallas y en el Excel. */
 export function orderText(r: Pick<EventOrderRow, 'attending' | 'description'>): string {
   if (r.attending) return r.description || 'Sin descripción'
+  if (r.description === EXCLUDED) return 'No participa'
   return r.description === DECLINED ? DECLINED : 'Sin pedido'
 }
 
@@ -83,8 +89,10 @@ export function parseAmount(v: unknown): number | null {
  * (solo se redondean al mostrarlos); lo que se redondea a centavos es el total de cada persona.
  * Así los totales coinciden con los del Excel que se venía usando.
  */
-export function computeSummary(rows: EventOrderRow[], ivaRate: number, payerOrderId: string | null): Summary {
+export function computeSummary(allRows: EventOrderRow[], ivaRate: number, payerOrderId: string | null): Summary {
   const rate = ivaRate / 100
+  // Quien eligió «No participo» no entra en ningún cálculo
+  const rows = allRows.filter(r => !isExcluded(r))
 
   const priced = rows.map(r => {
     const base = r.attending || r.is_birthday ? round2(Number(r.amount) + Number(r.extras_amount)) : 0

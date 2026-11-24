@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStaff } from '@/lib/auth'
-import { DECLINED, parseAmount } from '@/lib/cumple'
+import { DECLINED, isExcluded, parseAmount } from '@/lib/cumple'
 import { sanitizeAccount } from '@/lib/payment'
 import { mergeSavedAccount, type SavedAccount } from '@/lib/saved-account'
 import { NextResponse } from 'next/server'
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   if (event.status !== 'open' && body.action !== 'savePayment') return err('Este evento ya está cerrado', 403)
 
   const { data: mine, error: mineError } = await admin
-    .from('event_orders').select('id, paid, is_birthday').eq('event_id', event.id).eq('user_id', staff.userId).maybeSingle()
+    .from('event_orders').select('id, paid, is_birthday, attending, description').eq('event_id', event.id).eq('user_id', staff.userId).maybeSingle()
   if (mineError) return dbError(mineError)
 
   // Datos de cobro: solo quien fue elegido como pagador de la cuenta (el organizador usa /api/cumple/manage)
@@ -74,6 +74,8 @@ export async function POST(req: Request) {
   }
 
   if (body.action === 'save') {
+    // Solo un admin puede dejar a alguien fuera (desde Organizar); desde aquí no se puede deshacer
+    if (mine && isExcluded(mine as { attending: boolean; description: string })) return err('El organizador te dejó fuera de este evento', 403)
     const attending = body.attending !== false
     const amount = attending ? parseAmount(body.amount) : 0
     const extras = attending ? parseAmount(body.extrasAmount) : 0

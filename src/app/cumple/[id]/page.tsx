@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getStaff } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
-import { computeSummary, orderText, type EventOrderRow, type EventRow, type Line } from '@/lib/cumple'
+import { computeSummary, isExcluded, orderText, type EventOrderRow, type EventRow, type Line } from '@/lib/cumple'
 import { parseAccount } from '@/lib/payment'
 import { ensureEveryoneInEvent } from '@/lib/cumple-server'
 import { money } from '@/lib/menu'
@@ -80,6 +80,9 @@ export default async function EventPage({ params, searchParams }: {
 
   const summary = computeSummary(rows, Number(event.iva_rate), event.payer_order_id)
   const me = summary.lines.find(l => l.user_id === staff.userId)
+  // Mi fila aunque haya elegido «No participo» (en ese caso no está en el resumen)
+  const myRow = rows.find(r => r.user_id === staff.userId)
+  const excludedRows = rows.filter(isExcluded)
   const payer = summary.lines.find(l => l.isPayer)
   const closed = event.status === 'closed'
   const organizer = staff.canOrganize
@@ -218,14 +221,18 @@ export default async function EventPage({ params, searchParams }: {
         <>
           <Card title="Mi pedido" hint={closed ? 'Este evento está cerrado: ya no se pueden hacer cambios.' : 'Pon lo que vas a pedir y cuánto cuesta.'}>
             {closed ? (
-              me
-                ? <p className="text-sm">{orderText(me)}</p>
+              myRow
+                ? <p className="text-sm">{orderText(myRow)}</p>
                 : <p className="text-sm" style={{ color: 'var(--muted)' }}>No hiciste pedido en este evento.</p>
+            ) : myRow && isExcluded(myRow) ? (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                Estás fuera de este evento: no pagas nada. Si fue un error, pídele a un admin que te incluya en Organizar → Personas.
+              </p>
             ) : (
               <div className="space-y-4">
-                <OrderEditor key={me?.id ?? 'new'} mode="me" eventId={event.id} ivaRate={ivaRate}
-                  initial={me ? { attending: me.attending, description: me.description, amount: me.amount, extras_amount: me.extras_amount } : undefined}
-                  submitLabel={me ? 'Actualizar mi pedido' : 'Guardar mi pedido'} />
+                <OrderEditor key={myRow?.id ?? 'new'} mode="me" eventId={event.id} ivaRate={ivaRate}
+                  initial={myRow ? { attending: myRow.attending, description: myRow.description, amount: Number(myRow.amount), extras_amount: Number(myRow.extras_amount) } : undefined}
+                  submitLabel={myRow ? 'Actualizar mi pedido' : 'Guardar mi pedido'} />
                 {/* Sin «Quitar mi pedido»: todos están en el evento y pagan la parte del cumpleañero; para no pedir se elige «Esta vez no». */}
               </div>
             )}
@@ -386,7 +393,7 @@ export default async function EventPage({ params, searchParams }: {
             ) : (
               <ul>
                 {summary.lines.map(l => (
-                  <ParticipantRow key={l.id} eventId={event.id} ivaRate={ivaRate} accounts={linkable}
+                  <ParticipantRow key={l.id} eventId={event.id} ivaRate={ivaRate} accounts={linkable} canExclude={staff.isAdmin}
                     row={{
                       hasAccount: !!l.user_id,
                       id: l.id, name: l.name, attending: l.attending, description: l.description,
@@ -397,6 +404,25 @@ export default async function EventPage({ params, searchParams }: {
               </ul>
             )}
           </Card>
+
+          {excludedRows.length > 0 && (
+            <Card title={`No participan (${excludedRows.length})`}
+              hint={staff.isAdmin
+                ? 'No aparecen en el resumen ni pagan nada. Para volver a incluir a alguien, pulsa Editar y elige «Voy a pedir» o «Esta vez no».'
+                : 'No aparecen en el resumen ni pagan nada. Solo un admin puede cambiarlo.'}>
+              <ul>
+                {excludedRows.map(r => (
+                  <ParticipantRow key={r.id} eventId={event.id} ivaRate={ivaRate} accounts={linkable} canExclude={staff.isAdmin}
+                    row={{
+                      hasAccount: !!r.user_id,
+                      id: r.id, name: r.name, attending: r.attending, description: r.description,
+                      amount: Number(r.amount), extras_amount: Number(r.extras_amount), is_birthday: false,
+                      subtotal: 0, isPayer: false,
+                    }} />
+                ))}
+              </ul>
+            </Card>
+          )}
 
           <Card title="Agregar invitado" hint="Todas las cuentas de la app ya están en el evento. Aquí solo agregas a alguien que no tiene cuenta.">
             <AddPerson eventId={event.id} ivaRate={ivaRate} people={missingPeople} />

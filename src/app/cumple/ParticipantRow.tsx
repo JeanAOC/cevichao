@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import ActionButton from '@/components/ActionButton'
 import OrderEditor from './OrderEditor'
 import { money } from '@/lib/menu'
-import { orderText } from '@/lib/cumple'
+import { isExcluded, orderText } from '@/lib/cumple'
 
 export interface RowData {
   id: string
@@ -62,8 +62,10 @@ function LinkAccount({ orderId, accounts }: { orderId: string; accounts: { id: s
 }
 
 /** Fila del organizador: editar el pedido, marcar cumpleañero, vincular una cuenta o quitar a la persona. */
-export default function ParticipantRow({ row, eventId, ivaRate, accounts = [] }: {
+export default function ParticipantRow({ row, eventId, ivaRate, accounts = [], canExclude = false }: {
   row: RowData; eventId: string; ivaRate: number
+  /** Solo admins: ofrecer «No participo» al editar. */
+  canExclude?: boolean
   /** Cuentas de la app (para vincular a un invitado sin cuenta). */
   accounts?: { id: string; name: string }[]
 }) {
@@ -87,11 +89,14 @@ export default function ParticipantRow({ row, eventId, ivaRate, accounts = [] }:
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button onClick={() => setEditing(v => !v)}
-          className="text-sm px-4 min-h-11 rounded-lg font-bold border"
-          style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
-          {editing ? 'Cerrar' : 'Editar'}
-        </button>
+        {/* Quien está fuera del evento solo lo puede cambiar un admin */}
+        {(canExclude || !isExcluded(row)) && (
+          <button onClick={() => setEditing(v => !v)}
+            className="text-sm px-4 min-h-11 rounded-lg font-bold border"
+            style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+            {editing ? 'Cerrar' : 'Editar'}
+          </button>
+        )}
         <ActionButton endpoint={api} body={{ action: 'setBirthday', orderId: row.id, isBirthday: !row.is_birthday }}
           variant={row.is_birthday ? 'primary' : 'ghost'}>
           {row.is_birthday ? '🎂 Quitar cumpleañero' : '🎂 Es el cumpleañero'}
@@ -108,7 +113,7 @@ export default function ParticipantRow({ row, eventId, ivaRate, accounts = [] }:
 
       {editing && (
         <div className="rounded-xl border p-4 mt-2" style={{ background: 'color-mix(in srgb, var(--primary) 5%, var(--card))', borderColor: 'var(--border)' }}>
-          <OrderEditor mode="manage" eventId={eventId} ivaRate={ivaRate} orderId={row.id}
+          <OrderEditor mode="manage" eventId={eventId} ivaRate={ivaRate} orderId={row.id} canExclude={canExclude}
             initial={{ attending: row.attending, description: row.description, amount: row.amount, extras_amount: row.extras_amount }}
             submitLabel="Guardar cambios" onDone={() => setEditing(false)} />
         </div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { parseAmount, round2 } from '@/lib/cumple'
+import { EXCLUDED, parseAmount, round2 } from '@/lib/cumple'
 import { money } from '@/lib/menu'
 
 interface Props {
@@ -19,6 +19,8 @@ interface Props {
   initial?: { attending: boolean; description: string; amount: number; extras_amount: number }
   submitLabel?: string
   onDone?: () => void
+  /** Solo admins, desde Organizar: permite la opción «No participo». */
+  canExclude?: boolean
 }
 
 const inputCls = 'w-full px-4 py-3 min-h-12 rounded-xl text-base'
@@ -37,9 +39,11 @@ function MoneyInput({ label, value, onChange }: { label: string; value: string; 
   )
 }
 
-export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, name, initial, submitLabel, onDone }: Props) {
+export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, name, initial, submitLabel, onDone, canExclude = false }: Props) {
   const router = useRouter()
-  const [attending, setAttending] = useState(initial?.attending ?? true)
+  const [choice, setChoice] = useState<'order' | 'decline' | 'exclude'>(
+    !initial || initial.attending ? 'order' : initial.description === EXCLUDED ? 'exclude' : 'decline')
+  const attending = choice === 'order'
   const [description, setDescription] = useState(initial?.attending === false ? '' : initial?.description ?? '')
   const [amount, setAmount] = useState(initial && initial.amount > 0 ? initial.amount.toFixed(2) : '')
   const [extras, setExtras] = useState(initial && initial.extras_amount > 0 ? initial.extras_amount.toFixed(2) : '')
@@ -56,7 +60,7 @@ export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, n
     ev.preventDefault()
     setSaving(true)
     setMessage(null)
-    const common = { eventId, attending, description, amount, extrasAmount: extras }
+    const common = { eventId, attending, excluded: canExclude && choice === 'exclude', description, amount, extrasAmount: extras }
     const res = mode === 'me'
       ? await fetch('/api/cumple/me', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -79,11 +83,15 @@ export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, n
 
   return (
     <form onSubmit={save} className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        {([[true, 'Voy a pedir'], [false, 'Esta vez no']] as const).map(([val, label]) => (
-          <button key={label} type="button" onClick={() => setAttending(val)} aria-pressed={attending === val}
-            className="min-h-12 rounded-xl font-bold border-2 transition-colors"
-            style={attending === val
+      <div className={`grid gap-2 ${canExclude ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        {([
+          ['order', 'Voy a pedir'],
+          ['decline', 'Esta vez no'],
+          ...(canExclude ? [['exclude', 'No participo'] as const] : []),
+        ] as (readonly ['order' | 'decline' | 'exclude', string])[]).map(([val, label]) => (
+          <button key={label} type="button" onClick={() => setChoice(val)} aria-pressed={choice === val}
+            className="min-h-12 px-1 rounded-xl font-bold text-sm border-2 transition-colors"
+            style={choice === val
               ? { borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 12%, var(--card))', color: 'var(--primary)' }
               : { borderColor: 'var(--field-bd)', background: 'var(--card)', color: 'var(--text)' }}>
             {label}
@@ -116,7 +124,9 @@ export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, n
         </>
       ) : (
         <p className="text-sm rounded-xl px-4 py-3 border" style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
-          No pides esta vez, pero igual pagas tu parte del cumpleañero.
+          {choice === 'exclude'
+            ? 'No participas en este evento: no apareces en el resumen ni pagas nada (ni siquiera la parte del cumpleañero).'
+            : 'No pides esta vez, pero igual pagas tu parte del cumpleañero.'}
         </p>
       )}
 

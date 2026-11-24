@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireOrganizer } from '@/lib/auth'
-import { DECLINED, parseAmount } from '@/lib/cumple'
+import { DECLINED, EXCLUDED, parseAmount } from '@/lib/cumple'
 import { sanitizeAccount } from '@/lib/payment'
 import { ensureEveryoneInEvent } from '@/lib/cumple-server'
 import { getSavedAccount, mergeSavedAccount, nextPayerAccount, type SavedAccount } from '@/lib/saved-account'
@@ -113,10 +113,11 @@ export async function POST(req: Request) {
     case 'saveOrder': {
       if (!isUuid(body.eventId)) return err('Evento inválido')
       const attending = body.attending !== false
+      if (!attending && body.excluded === true && !auth.staff.isAdmin) return err('Solo un admin puede dejar a alguien fuera del evento', 403)
       const amount = attending ? parseAmount(body.amount) : 0
       const extras = attending ? parseAmount(body.extrasAmount) : 0
       if (amount === null || extras === null) return err('Los montos deben ser números (por ejemplo 5.17)')
-      const description = attending ? text(body.description, 200) : DECLINED
+      const description = attending ? text(body.description, 200) : body.excluded === true ? EXCLUDED : DECLINED
       const fields = { attending, description, amount, extras_amount: extras }
 
       if (isUuid(body.orderId)) {
