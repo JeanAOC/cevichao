@@ -103,6 +103,7 @@ export default async function EventPage({ params, searchParams }: {
       // Si el organizador te eligió como quien pagó la cuenta, aquí pones dónde te depositan
       ...(me?.isPayer ? [{ id: 'micuenta', label: 'Mi cuenta', icon: '🏦', badge: event.payment_info || event.payment_qr ? undefined : '!' }] : []),
     ] : []),
+    { id: 'pedidos', label: 'Pedidos', icon: '🍽️', badge: summary.lines.some(l => l.attending) ? String(summary.lines.filter(l => l.attending).length) : undefined },
     { id: 'resumen', label: 'Resumen', icon: '📊' },
     ...(organizer ? [
       { id: 'pagos', label: 'Pagos', icon: '💵', badge: summary.pending > 0 ? String(summary.lines.filter(l => !l.paidNow).length) : undefined },
@@ -284,6 +285,54 @@ export default async function EventPage({ params, searchParams }: {
         </>
       )}
 
+      {/* ───────── Pedidos: tabla aparte, solo quienes pidieron, con su pedido y su precio ───────── */}
+      {tab === 'pedidos' && (() => {
+        const ordered = summary.lines.filter(l => l.attending)
+        const orderedTotal = ordered.reduce((s, l) => s + l.subtotal - withIva(l.soda), 0)
+        return (
+          <Card title={`Lo que pidieron (${ordered.length})`} hint="Precio de cada pedido con IVA, sin la parte del cumpleañero.">
+            {ordered.length === 0 ? (
+              <p className="text-center py-6" style={{ color: 'var(--muted)' }}>Todavía nadie pidió.</p>
+            ) : (
+              <div className="overflow-x-auto -mx-1 px-1">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="text-xs uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+                      <th className="py-2 pr-3 font-bold">Persona</th>
+                      <th className="py-2 pr-3 font-bold">Pedido</th>
+                      <th className="py-2 text-right font-bold">Precio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ordered.map(l => (
+                      <tr key={l.id} className="border-t align-top" style={{ borderColor: 'var(--border)' }}>
+                        <td className="py-2.5 pr-3 font-bold leading-tight">
+                          {l.name}
+                          {l.is_birthday && <span className="block"><span className="chip chip-warn chip-sm">🎂</span></span>}
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          {l.description || 'Sin descripción'}
+                          {l.soda > 0 && <span className="block text-xs" style={{ color: 'var(--muted)' }}>+ gaseosa {money(withIva(l.soda))}</span>}
+                        </td>
+                        <td className="py-2.5 text-right font-extrabold font-display whitespace-nowrap" style={{ color: 'var(--accent)' }}>
+                          {money(l.subtotal - withIva(l.soda))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2" style={{ borderColor: 'var(--border)' }}>
+                      <td colSpan={2} className="py-3 font-black">Total de los pedidos</td>
+                      <td className="py-3 text-right font-black font-display whitespace-nowrap">{money(orderedTotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </Card>
+        )
+      })()}
+
       {/* ───────── Resumen ───────── */}
       {tab === 'resumen' && (
         <>
@@ -294,7 +343,7 @@ export default async function EventPage({ params, searchParams }: {
             <Stat label="Falta" value={money(summary.pending)} color={summary.pending > 0 ? 'var(--accent)' : 'var(--success)'} />
           </div>
 
-          <Card title={`Personas (${summary.lines.length})`}>
+          <Card title={`Personas (${summary.lines.length})`} hint="Lo que debe pagar cada una.">
             {summary.lines.length === 0 ? (
               <p className="text-center py-6" style={{ color: 'var(--muted)' }}>Todavía nadie puso su pedido.</p>
             ) : (
