@@ -57,10 +57,10 @@ export interface Soda {
 
 /**
  * Cuánto le toca a cada pedido por las gaseosas (sin IVA): precio ÷ cantidad de bebedores.
- * Solo cuentan los que participan del evento (pidieron, o son el cumpleañero) y siguen en él; los demás se ignoran.
+ * Puede tomar cualquiera que siga en el evento, haya pedido comida o no (quien eligió «No participo» queda fuera).
  */
 export function sodaShares(sodas: Soda[], rows: EventOrderRow[]): Record<string, number> {
-  const eligible = new Set(rows.filter(r => !isExcluded(r) && (r.attending || r.is_birthday)).map(r => r.id))
+  const eligible = new Set(rows.filter(r => !isExcluded(r)).map(r => r.id))
   const out: Record<string, number> = {}
   for (const s of sodas) {
     const who = [...new Set(s.drinkers)].filter(id => eligible.has(id))
@@ -129,8 +129,9 @@ export function computeSummary(
 
   const priced = rows.map(r => {
     const counts = r.attending || r.is_birthday
-    const sodaShare = counts ? soda[r.id] ?? 0 : 0
-    const base = counts ? round2(Number(r.amount) + Number(r.extras_amount)) + sodaShare : 0
+    // La gaseosa cuenta aunque la persona no haya pedido comida
+    const sodaShare = soda[r.id] ?? 0
+    const base = (counts ? round2(Number(r.amount) + Number(r.extras_amount)) : 0) + sodaShare
     const iva = base * rate
     return { r, base, iva, subtotal: base + iva, sodaShare }
   })

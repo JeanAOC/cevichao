@@ -103,7 +103,7 @@ export default async function EventPage({ params, searchParams }: {
       // Si el organizador te eligió como quien pagó la cuenta, aquí pones dónde te depositan
       ...(me?.isPayer ? [{ id: 'micuenta', label: 'Mi cuenta', icon: '🏦', badge: event.payment_info || event.payment_qr ? undefined : '!' }] : []),
     ] : []),
-    { id: 'pedidos', label: 'Pedidos', icon: '🍽️', badge: summary.lines.some(l => l.attending) ? String(summary.lines.filter(l => l.attending).length) : undefined },
+    { id: 'pedidos', label: 'Pedidos', icon: '🍽️', badge: summary.lines.some(l => l.attending || l.soda > 0) ? String(summary.lines.filter(l => l.attending || l.soda > 0).length) : undefined },
     { id: 'resumen', label: 'Resumen', icon: '📊' },
     ...(organizer ? [
       { id: 'pagos', label: 'Pagos', icon: '💵', badge: summary.pending > 0 ? String(summary.lines.filter(l => !l.paidNow).length) : undefined },
@@ -138,8 +138,8 @@ export default async function EventPage({ params, searchParams }: {
   const dateLabel = rawDate.charAt(0).toUpperCase() + rawDate.slice(1)
   const birthdayNames = summary.lines.filter(l => l.is_birthday).map(l => l.name)
   const withIva = (n: number) => n * (1 + ivaRate / 100)
-  // Quiénes pueden tomar gaseosa: los que pidieron (o el cumpleañero) y siguen en el evento
-  const sodaPeople = summary.lines.filter(l => l.attending || l.is_birthday).map(l => ({ id: l.id, name: l.name }))
+  // Quiénes pueden tomar gaseosa: todos los que siguen en el evento, hayan pedido comida o no
+  const sodaPeople = summary.lines.map(l => ({ id: l.id, name: l.name }))
 
   const owesCard = me ? (
     <Card title="Lo que debes">
@@ -287,7 +287,7 @@ export default async function EventPage({ params, searchParams }: {
 
       {/* ───────── Pedidos: tabla aparte, solo quienes pidieron, con su pedido y su precio ───────── */}
       {tab === 'pedidos' && (() => {
-        const ordered = summary.lines.filter(l => l.attending)
+        const ordered = summary.lines.filter(l => l.attending || l.soda > 0) // también quien solo toma gaseosa
         // Comida = «Valor»; Bebida = bebidas y extras + su parte de gaseosa. Los dos con IVA, para que sumen el total.
         const food = (l: Line) => withIva(l.amount)
         const drink = (l: Line) => withIva(l.extras_amount + l.soda)
@@ -318,8 +318,8 @@ export default async function EventPage({ params, searchParams }: {
                           {l.is_birthday && <span className="block"><span className="chip chip-warn chip-sm">🎂</span></span>}
                         </td>
                         <td className="py-2.5 pr-3">
-                          {l.description || 'Sin descripción'}
-                          {l.soda > 0 && <span className="block text-xs" style={{ color: 'var(--muted)' }}>incluye gaseosa compartida {money(withIva(l.soda))}</span>}
+                          {l.attending ? (l.description || 'Sin descripción') : 'Solo gaseosa'}
+                          {l.attending && l.soda > 0 && <span className="block text-xs" style={{ color: 'var(--muted)' }}>incluye gaseosa compartida {money(withIva(l.soda))}</span>}
                         </td>
                         <td className={td}>{food(l) > 0 ? money(food(l)) : '—'}</td>
                         <td className={td}>{drink(l) > 0 ? money(drink(l)) : '—'}</td>
@@ -383,7 +383,7 @@ export default async function EventPage({ params, searchParams }: {
       {/* ───────── Gaseosa compartida (solo organizador) ───────── */}
       {organizer && tab === 'gaseosa' && (
         <>
-          <Card title="Gaseosa compartida" hint="Se paga entre quienes la toman: marca quiénes. Quien no la toma no paga nada, aunque haya pedido. Se cobra junto con lo demás, a quien pagó la cuenta.">
+          <Card title="Gaseosa compartida" hint="Se paga entre quienes la toman: marca quiénes, hayan pedido comida o no. Quien no la toma no paga nada de la gaseosa. Se cobra junto con lo demás, a quien pagó la cuenta.">
             {sodas.length === 0 && <p className="text-sm" style={{ color: 'var(--muted)' }}>Todavía no hay ninguna. Agrégala abajo.</p>}
           </Card>
           {sodas.map(s => (

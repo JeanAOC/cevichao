@@ -9,7 +9,7 @@ export interface SodaData { id?: string; label: string; price: number; drinkers:
 export interface Person { id: string; name: string }
 
 /**
- * Una gaseosa compartida: nombre, precio y quiénes la toman (solo entre quienes pidieron).
+ * Una gaseosa compartida: nombre, precio y quiénes la toman (cualquiera del evento, haya pedido comida o no).
  * El precio se reparte en partes iguales entre los marcados; los demás no pagan nada.
  * `soda` sin id = formulario para agregar una nueva.
  */
@@ -68,7 +68,7 @@ export default function SodaEditor({ eventId, soda, people, ivaRate }: {
           </div>
         </div>
         {people.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>Todavía nadie pidió: solo pueden tomar quienes pidieron.</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>Todavía no hay personas en el evento.</p>
         ) : (
           <ul className="grid sm:grid-cols-2 gap-1.5">
             {people.map(p => (
