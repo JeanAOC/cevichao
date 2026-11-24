@@ -2,9 +2,10 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getStaff } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
-import { computeSummary, isExcluded, orderText, type EventOrderRow, type EventRow, type Line } from '@/lib/cumple'
+import { computeSummary, isExcluded, orderText, sodaShares, type EventOrderRow, type EventRow, type Line } from '@/lib/cumple'
 import { parseAccount } from '@/lib/payment'
-import { ensureEveryoneInEvent } from '@/lib/cumple-server'
+import { ensureEveryoneInEvent, loadSodas } from '@/lib/cumple-server'
+import SodaEditor from '../SodaEditor'
 import { money } from '@/lib/menu'
 import type { NavItem } from '@/components/Navbar'
 import CumpleShell from '../CumpleShell'
@@ -78,7 +79,9 @@ export default async function EventPage({ params, searchParams }: {
   const { data: rowsData } = await supabase.from('event_orders').select('*').eq('event_id', id).order('created_at', { ascending: true })
   const rows = (rowsData ?? []) as EventOrderRow[]
 
-  const summary = computeSummary(rows, Number(event.iva_rate), event.payer_order_id)
+  // Gaseosas compartidas: se pagan solo entre quienes las toman (las maneja el organizador)
+  const sodas = await loadSodas(id)
+  const summary = computeSummary(rows, Number(event.iva_rate), event.payer_order_id, sodaShares(sodas, rows))
   const me = summary.lines.find(l => l.user_id === staff.userId)
   // Mi fila aunque haya elegido «No participo» (en ese caso no está en el resumen)
   const myRow = rows.find(r => r.user_id === staff.userId)
@@ -103,6 +106,7 @@ export default async function EventPage({ params, searchParams }: {
     { id: 'resumen', label: 'Resumen', icon: '📊' },
     ...(organizer ? [
       { id: 'pagos', label: 'Pagos', icon: '💵', badge: summary.pending > 0 ? String(summary.lines.filter(l => !l.paidNow).length) : undefined },
+      { id: 'gaseosa', label: 'Gaseosa', icon: '🥤', badge: sodas.length > 0 ? String(sodas.length) : undefined },
       { id: 'cuenta', label: 'Cuenta', icon: '🏦' },
       { id: 'organizar', label: 'Organizar', icon: '⚙️' },
     ] : []),
@@ -132,6 +136,9 @@ export default async function EventPage({ params, searchParams }: {
     .toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const dateLabel = rawDate.charAt(0).toUpperCase() + rawDate.slice(1)
   const birthdayNames = summary.lines.filter(l => l.is_birthday).map(l => l.name)
+  const withIva = (n: number) => n * (1 + ivaRate / 100)
+  // Quiénes pueden tomar gaseosa: los que pidieron (o el cumpleañero) y siguen en el evento
+  const sodaPeople = summary.lines.filter(l => l.attending || l.is_birthday).map(l => ({ id: l.id, name: l.name }))
 
   const owesCard = me ? (
     <Card title="Lo que debes">
@@ -139,7 +146,10 @@ export default async function EventPage({ params, searchParams }: {
         <p className="font-semibold">🎉 Eres el cumpleañero: no pagas nada.</p>
       ) : (
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between"><span style={{ color: 'var(--muted)' }}>Tu pedido (con IVA)</span><span>{money(me.subtotal)}</span></div>
+          <div className="flex justify-between"><span style={{ color: 'var(--muted)' }}>Tu pedido (con IVA)</span><span>{money(me.subtotal - withIva(me.soda))}</span></div>
+          {me.soda > 0 && (
+            <div className="flex justify-between"><span style={{ color: 'var(--muted)' }}>Gaseosa compartida</span><span>{money(withIva(me.soda))}</span></div>
+          )}
           <div className="flex justify-between">
             <span style={{ color: 'var(--muted)' }}>Parte del cumpleañero{birthdayNames.length ? ` (${birthdayNames.join(', ')})` : ''}</span>
             <span>{money(me.guestShare)}</span>
@@ -294,7 +304,7 @@ export default async function EventPage({ params, searchParams }: {
                     <div className="min-w-0">
                       <p className="font-bold leading-tight flex flex-wrap items-center gap-1.5">{l.name} <Chips l={l} /></p>
                       <p className="text-sm" style={{ color: 'var(--muted)' }}>{orderText(l)}</p>
-                      {(l.attending || l.guestShare > 0) && <p className="text-xs" style={{ color: 'var(--muted)' }}>Pedido {money(l.subtotal)}{l.guestShare > 0 ? ` + ${money(l.guestShare)} del cumpleañero` : ''}</p>}
+                      {(l.attending || l.guestShare > 0) && <p className="text-xs" style={{ color: 'var(--muted)' }}>Pedido {money(l.subtotal)}{l.soda > 0 ? ` (incluye gaseosa ${money(withIva(l.soda))})` : ''}{l.guestShare > 0 ? ` + ${money(l.guestShare)} del cumpleañero` : ''}</p>}
                     </div>
                     <div className="text-right shrink-0">
                       {l.is_birthday
@@ -308,6 +318,23 @@ export default async function EventPage({ params, searchParams }: {
                 ))}
               </ul>
             )}
+          </Card>
+        </>
+      )}
+
+      {/* ───────── Gaseosa compartida (solo organizador) ───────── */}
+      {organizer && tab === 'gaseosa' && (
+        <>
+          <Card title="Gaseosa compartida" hint="Se paga entre quienes la toman: marca quiénes. Quien no la toma no paga nada, aunque haya pedido. Se cobra junto con lo demás, a quien pagó la cuenta.">
+            {sodas.length === 0 && <p className="text-sm" style={{ color: 'var(--muted)' }}>Todavía no hay ninguna. Agrégala abajo.</p>}
+          </Card>
+          {sodas.map(s => (
+            <Card key={s.id} title={`🥤 ${s.label}`}>
+              <SodaEditor eventId={event.id} soda={s} people={sodaPeople} ivaRate={ivaRate} />
+            </Card>
+          ))}
+          <Card title="Agregar gaseosa">
+            <SodaEditor key={`new-${sodas.length}`} eventId={event.id} people={sodaPeople} ivaRate={ivaRate} />
           </Card>
         </>
       )}

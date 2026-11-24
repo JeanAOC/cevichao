@@ -43,8 +43,37 @@ export function orderText(r: Pick<EventOrderRow, 'attending' | 'description'>): 
   return r.description === DECLINED ? DECLINED : 'Sin pedido'
 }
 
+/**
+ * Gaseosa (u otra cosa) que se paga entre quienes la toman. `drinkers` son ids de `event_orders`.
+ * Quien no está en la lista no paga nada; el organizador es quien decide la lista.
+ */
+export interface Soda {
+  id: string
+  label: string
+  /** Precio total (sin IVA, como los demás montos) */
+  price: number
+  drinkers: string[]
+}
+
+/**
+ * Cuánto le toca a cada pedido por las gaseosas (sin IVA): precio ÷ cantidad de bebedores.
+ * Solo cuentan los que participan del evento (pidieron, o son el cumpleañero) y siguen en él; los demás se ignoran.
+ */
+export function sodaShares(sodas: Soda[], rows: EventOrderRow[]): Record<string, number> {
+  const eligible = new Set(rows.filter(r => !isExcluded(r) && (r.attending || r.is_birthday)).map(r => r.id))
+  const out: Record<string, number> = {}
+  for (const s of sodas) {
+    const who = [...new Set(s.drinkers)].filter(id => eligible.has(id))
+    if (who.length === 0) continue
+    for (const id of who) out[id] = (out[id] ?? 0) + s.price / who.length
+  }
+  return out
+}
+
 export interface Line extends EventOrderRow {
-  /** Valor + bebidas y extras (sin IVA) */
+  /** Su parte de las gaseosas compartidas (sin IVA; ya está dentro de `base`) */
+  soda: number
+  /** Valor + bebidas y extras + gaseosas (sin IVA) */
   base: number
   iva: number
   /** base + IVA: lo que cuesta su pedido */
@@ -89,28 +118,34 @@ export function parseAmount(v: unknown): number | null {
  * (solo se redondean al mostrarlos); lo que se redondea a centavos es el total de cada persona.
  * Así los totales coinciden con los del Excel que se venía usando.
  */
-export function computeSummary(allRows: EventOrderRow[], ivaRate: number, payerOrderId: string | null): Summary {
+export function computeSummary(
+  allRows: EventOrderRow[], ivaRate: number, payerOrderId: string | null,
+  /** Parte de gaseosas por pedido (de `sodaShares`). Es como un extra más: lleva IVA y, si es del cumpleañero, lo reparten los demás. */
+  soda: Record<string, number> = {},
+): Summary {
   const rate = ivaRate / 100
   // Quien eligió «No participo» no entra en ningún cálculo
   const rows = allRows.filter(r => !isExcluded(r))
 
   const priced = rows.map(r => {
-    const base = r.attending || r.is_birthday ? round2(Number(r.amount) + Number(r.extras_amount)) : 0
+    const counts = r.attending || r.is_birthday
+    const sodaShare = counts ? soda[r.id] ?? 0 : 0
+    const base = counts ? round2(Number(r.amount) + Number(r.extras_amount)) + sodaShare : 0
     const iva = base * rate
-    return { r, base, iva, subtotal: base + iva }
+    return { r, base, iva, subtotal: base + iva, sodaShare }
   })
 
   const birthdayCost = priced.filter(p => p.r.is_birthday).reduce((s, p) => s + p.subtotal, 0)
   const payers = priced.filter(p => !p.r.is_birthday)
   const guestShare = payers.length > 0 ? birthdayCost / payers.length : 0
 
-  const lines: Line[] = priced.map(({ r, base, iva, subtotal }) => {
+  const lines: Line[] = priced.map(({ r, base, iva, subtotal, sodaShare }) => {
     const total = r.is_birthday ? 0 : round2(subtotal + guestShare)
     const isPayer = r.id === payerOrderId
     const paidNow = r.is_birthday || r.paid || isPayer
     return {
       ...r, amount: Number(r.amount), extras_amount: Number(r.extras_amount),
-      base, iva, subtotal,
+      soda: sodaShare, base, iva, subtotal,
       guestShare: r.is_birthday ? 0 : guestShare,
       total, isPayer, paidNow,
       balance: paidNow ? 0 : total,

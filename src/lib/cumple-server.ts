@@ -1,4 +1,27 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Soda } from '@/lib/cumple'
+
+/** Las gaseosas compartidas de un evento viven en `settings` (clave `cumple_soda:<eventId>`): no hace falta migración. */
+export const sodaKey = (eventId: string) => `cumple_soda:${eventId}`
+
+export async function loadSodas(eventId: string): Promise<Soda[]> {
+  const { data } = await createAdminClient().from('settings').select('value').eq('key', sodaKey(eventId)).maybeSingle()
+  try {
+    const list = JSON.parse(String(data?.value ?? '[]'))
+    if (!Array.isArray(list)) return []
+    return list
+      .filter(s => s && typeof s.id === 'string' && typeof s.label === 'string' && Number.isFinite(Number(s.price)))
+      .map(s => ({ id: s.id, label: s.label, price: Number(s.price), drinkers: Array.isArray(s.drinkers) ? s.drinkers.filter((d: unknown) => typeof d === 'string') : [] }))
+  } catch {
+    return []
+  }
+}
+
+/** Devuelve un mensaje de error, o null si salió bien. */
+export async function saveSodas(eventId: string, sodas: Soda[]): Promise<string | null> {
+  const { error } = await createAdminClient().from('settings').upsert({ key: sodaKey(eventId), value: JSON.stringify(sodas) })
+  return error ? error.message : null
+}
 
 /**
  * Deja en el evento a TODAS las cuentas de la app como «sin pedido» (pagan solo la parte del cumpleañero).

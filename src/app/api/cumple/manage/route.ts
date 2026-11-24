@@ -2,7 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireOrganizer } from '@/lib/auth'
 import { DECLINED, EXCLUDED, parseAmount } from '@/lib/cumple'
 import { sanitizeAccount } from '@/lib/payment'
-import { ensureEveryoneInEvent } from '@/lib/cumple-server'
+import { ensureEveryoneInEvent, loadSodas, saveSodas, sodaKey } from '@/lib/cumple-server'
 import { getSavedAccount, mergeSavedAccount, nextPayerAccount, type SavedAccount } from '@/lib/saved-account'
 import { NextResponse } from 'next/server'
 
@@ -106,6 +106,38 @@ export async function POST(req: Request) {
       if (!isUuid(body.eventId)) return err('Evento inválido')
       const { error } = await admin.from('events').delete().eq('id', body.eventId)
       if (error) return dbError(error)
+      await admin.from('settings').delete().eq('key', sodaKey(body.eventId)) // sus gaseosas compartidas
+      return ok
+    }
+
+    // Gaseosa compartida: se paga entre quienes la toman (la lista la decide el organizador)
+    case 'saveSoda': {
+      if (!isUuid(body.eventId)) return err('Evento inválido')
+      const s = body.soda && typeof body.soda === 'object' ? body.soda : {}
+      const label = text(s.label, 40)
+      const price = parseAmount(s.price)
+      if (!label) return err('Escribe qué gaseosa es (por ejemplo «Coca-Cola 3 L»)')
+      if (price === null || price <= 0) return err('Pon el precio de la gaseosa (por ejemplo 3.00)')
+      const { data: orders, error } = await admin.from('event_orders').select('id').eq('event_id', body.eventId)
+      if (error) return dbError(error)
+      const valid = new Set((orders ?? []).map(o => o.id))
+      const wanted: unknown[] = Array.isArray(s.drinkers) ? s.drinkers : []
+      const drinkers: string[] = [...new Set(wanted.filter(isUuid))].filter(d => valid.has(d))
+      const id = isUuid(s.id) ? s.id : crypto.randomUUID()
+      const sodas = await loadSodas(body.eventId)
+      const item = { id, label, price, drinkers }
+      const next = sodas.some(x => x.id === id) ? sodas.map(x => (x.id === id ? item : x)) : [...sodas, item]
+      if (next.length > 10) return err('Máximo 10 gaseosas por evento')
+      const saveError = await saveSodas(body.eventId, next)
+      if (saveError) return err(saveError, 500)
+      return ok
+    }
+
+    case 'deleteSoda': {
+      if (!isUuid(body.eventId) || !isUuid(body.sodaId)) return err('Datos inválidos')
+      const sodas = await loadSodas(body.eventId)
+      const saveError = await saveSodas(body.eventId, sodas.filter(x => x.id !== body.sodaId))
+      if (saveError) return err(saveError, 500)
       return ok
     }
 

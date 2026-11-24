@@ -1,7 +1,8 @@
 import ExcelJS from 'exceljs'
 import { requireOrganizer } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
-import { computeSummary, orderText, type EventOrderRow, type EventRow } from '@/lib/cumple'
+import { computeSummary, orderText, sodaShares, type EventOrderRow, type EventRow } from '@/lib/cumple'
+import { loadSodas } from '@/lib/cumple-server'
 import { parseAccount } from '@/lib/payment'
 import { NextResponse } from 'next/server'
 
@@ -30,7 +31,8 @@ export async function GET(req: Request) {
 
   const { data: rowsData } = await supabase.from('event_orders').select('*').eq('event_id', eventId).order('created_at', { ascending: true })
   const rate = Number(event.iva_rate)
-  const summary = computeSummary((rowsData ?? []) as EventOrderRow[], rate, event.payer_order_id)
+  const eventRows = (rowsData ?? []) as EventOrderRow[]
+  const summary = computeSummary(eventRows, rate, event.payer_order_id, sodaShares(await loadSodas(eventId), eventRows))
 
   const wb = new ExcelJS.Workbook()
   const sheetName = event.name.replace(/[\\/?*:[\]]/g, '').trim().slice(0, 31) || 'Evento'
@@ -61,7 +63,9 @@ export async function GET(req: Request) {
     row.getCell(1).value = l.name
     row.getCell(2).value = l.attending ? l.description : orderText(l)
     if (l.attending && l.amount > 0) row.getCell(3).value = l.amount
-    if (l.attending && l.extras_amount > 0) row.getCell(4).value = l.extras_amount
+    // La gaseosa compartida va dentro de «Bebidas y extras» (así las fórmulas de IVA y subtotal no cambian)
+    const extrasCol = (l.attending ? l.extras_amount : 0) + l.soda
+    if (extrasCol > 0) row.getCell(4).value = extrasCol
     // Fórmulas vivas: si cambias Valor o Bebidas en Excel, todo se recalcula
     // Sin ROUND en el medio, igual que la hoja original: solo se redondea al mostrar
     row.getCell(5).value = { formula: `(C${r}+D${r})*${rate / 100}`, result: l.iva }
@@ -89,7 +93,7 @@ export async function GET(req: Request) {
   totalRow.getCell(1).value = 'Total'
   const sums: [number, string, number][] = [
     [3, 'C', summary.lines.reduce((s, l) => s + (l.attending ? l.amount : 0), 0)],
-    [4, 'D', summary.lines.reduce((s, l) => s + (l.attending ? l.extras_amount : 0), 0)],
+    [4, 'D', summary.lines.reduce((s, l) => s + (l.attending ? l.extras_amount : 0) + l.soda, 0)],
     [5, 'E', summary.lines.reduce((s, l) => s + l.iva, 0)],
     [6, 'F', summary.grandSubtotal],
     [7, 'G', summary.lines.reduce((s, l) => s + l.guestShare, 0)],
