@@ -288,9 +288,14 @@ export default async function EventPage({ params, searchParams }: {
       {/* ───────── Pedidos: tabla aparte, solo quienes pidieron, con su pedido y su precio ───────── */}
       {tab === 'pedidos' && (() => {
         const ordered = summary.lines.filter(l => l.attending)
-        const orderedTotal = ordered.reduce((s, l) => s + l.subtotal - withIva(l.soda), 0)
+        // Comida = «Valor»; Bebida = bebidas y extras + su parte de gaseosa. Los dos con IVA, para que sumen el total.
+        const food = (l: Line) => withIva(l.amount)
+        const drink = (l: Line) => withIva(l.extras_amount + l.soda)
+        const sum = (f: (l: Line) => number) => ordered.reduce((s, l) => s + f(l), 0)
+        const th = 'py-2 text-right font-bold pl-3'
+        const td = 'py-2.5 pl-3 text-right whitespace-nowrap'
         return (
-          <Card title={`Lo que pidieron (${ordered.length})`} hint="Precio de cada pedido con IVA, sin la parte del cumpleañero.">
+          <Card title={`Lo que pidieron (${ordered.length})`} hint="Precios con IVA, sin la parte del cumpleañero.">
             {ordered.length === 0 ? (
               <p className="text-center py-6" style={{ color: 'var(--muted)' }}>Todavía nadie pidió.</p>
             ) : (
@@ -299,8 +304,10 @@ export default async function EventPage({ params, searchParams }: {
                   <thead>
                     <tr className="text-xs uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
                       <th className="py-2 pr-3 font-bold">Persona</th>
-                      <th className="py-2 pr-3 font-bold">Pedido</th>
-                      <th className="py-2 text-right font-bold">Precio</th>
+                      <th className="py-2 pr-3 font-bold min-w-48">Pedido</th>
+                      <th className={th}>Comida</th>
+                      <th className={th}>Bebida</th>
+                      <th className={th}>Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -312,18 +319,20 @@ export default async function EventPage({ params, searchParams }: {
                         </td>
                         <td className="py-2.5 pr-3">
                           {l.description || 'Sin descripción'}
-                          {l.soda > 0 && <span className="block text-xs" style={{ color: 'var(--muted)' }}>+ gaseosa {money(withIva(l.soda))}</span>}
+                          {l.soda > 0 && <span className="block text-xs" style={{ color: 'var(--muted)' }}>incluye gaseosa compartida {money(withIva(l.soda))}</span>}
                         </td>
-                        <td className="py-2.5 text-right font-extrabold font-display whitespace-nowrap" style={{ color: 'var(--accent)' }}>
-                          {money(l.subtotal - withIva(l.soda))}
-                        </td>
+                        <td className={td}>{food(l) > 0 ? money(food(l)) : '—'}</td>
+                        <td className={td}>{drink(l) > 0 ? money(drink(l)) : '—'}</td>
+                        <td className={`${td} font-extrabold font-display`} style={{ color: 'var(--accent)' }}>{money(l.subtotal)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2" style={{ borderColor: 'var(--border)' }}>
-                      <td colSpan={2} className="py-3 font-black">Total de los pedidos</td>
-                      <td className="py-3 text-right font-black font-display whitespace-nowrap">{money(orderedTotal)}</td>
+                      <td colSpan={2} className="py-3 font-black">Total</td>
+                      <td className="py-3 pl-3 text-right font-bold whitespace-nowrap">{money(sum(food))}</td>
+                      <td className="py-3 pl-3 text-right font-bold whitespace-nowrap">{money(sum(drink))}</td>
+                      <td className="py-3 pl-3 text-right font-black font-display text-lg whitespace-nowrap" style={{ color: 'var(--accent)' }}>{money(sum(l => l.subtotal))}</td>
                     </tr>
                   </tfoot>
                 </table>
