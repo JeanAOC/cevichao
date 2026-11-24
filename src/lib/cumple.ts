@@ -25,6 +25,18 @@ export interface EventOrderRow {
   paid: boolean
 }
 
+/**
+ * Quien elige «Esta vez no» se guarda con attending=false y esta marca en `description`.
+ * Así se distingue de quien todavía no respondió (attending=false y descripción vacía = «Sin pedido»).
+ */
+export const DECLINED = 'Esta vez no'
+
+/** Texto de lo que pidió una persona, para mostrar en pantallas y en el Excel. */
+export function orderText(r: Pick<EventOrderRow, 'attending' | 'description'>): string {
+  if (r.attending) return r.description || 'Sin descripción'
+  return r.description === DECLINED ? DECLINED : 'Sin pedido'
+}
+
 export interface Line extends EventOrderRow {
   /** Valor + bebidas y extras (sin IVA) */
   base: number

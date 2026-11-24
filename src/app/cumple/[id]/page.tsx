@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getStaff } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
-import { computeSummary, type EventOrderRow, type EventRow, type Line } from '@/lib/cumple'
+import { computeSummary, orderText, type EventOrderRow, type EventRow, type Line } from '@/lib/cumple'
 import { parseAccount } from '@/lib/payment'
 import { ensureEveryoneInEvent } from '@/lib/cumple-server'
 import { money } from '@/lib/menu'
@@ -219,7 +219,7 @@ export default async function EventPage({ params, searchParams }: {
           <Card title="Mi pedido" hint={closed ? 'Este evento está cerrado: ya no se pueden hacer cambios.' : 'Pon lo que vas a pedir y cuánto cuesta.'}>
             {closed ? (
               me
-                ? <p className="text-sm">{me.attending ? me.description : 'Sin pedido'}</p>
+                ? <p className="text-sm">{orderText(me)}</p>
                 : <p className="text-sm" style={{ color: 'var(--muted)' }}>No hiciste pedido en este evento.</p>
             ) : (
               <div className="space-y-4">
@@ -286,7 +286,7 @@ export default async function EventPage({ params, searchParams }: {
                   <li key={l.id} className="py-3 border-t first:border-t-0 flex items-start justify-between gap-3" style={{ borderColor: 'var(--border)' }}>
                     <div className="min-w-0">
                       <p className="font-bold leading-tight flex flex-wrap items-center gap-1.5">{l.name} <Chips l={l} /></p>
-                      <p className="text-sm" style={{ color: 'var(--muted)' }}>{l.attending ? l.description : 'Sin pedido'}</p>
+                      <p className="text-sm" style={{ color: 'var(--muted)' }}>{orderText(l)}</p>
                       {(l.attending || l.guestShare > 0) && <p className="text-xs" style={{ color: 'var(--muted)' }}>Pedido {money(l.subtotal)}{l.guestShare > 0 ? ` + ${money(l.guestShare)} del cumpleañero` : ''}</p>}
                     </div>
                     <div className="text-right shrink-0">

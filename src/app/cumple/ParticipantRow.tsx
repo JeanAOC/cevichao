@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import ActionButton from '@/components/ActionButton'
 import OrderEditor from './OrderEditor'
 import { money } from '@/lib/menu'
+import { orderText } from '@/lib/cumple'
 
 export interface RowData {
   id: string
@@ -79,7 +80,7 @@ export default function ParticipantRow({ row, eventId, ivaRate, accounts = [] }:
             {row.isPayer && <span className="chip chip-info chip-sm">💳 Pagó la cuenta</span>}
           </p>
           <p className="text-sm truncate" style={{ color: 'var(--muted)' }}>
-            {row.attending ? (row.description || 'Sin descripción') : 'Sin pedido'}
+            {orderText(row)}
           </p>
         </div>
         <span className="font-extrabold font-display shrink-0" style={{ color: 'var(--accent)' }}>{money(row.subtotal)}</span>

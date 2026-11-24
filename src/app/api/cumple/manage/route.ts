@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireOrganizer } from '@/lib/auth'
-import { parseAmount } from '@/lib/cumple'
+import { DECLINED, parseAmount } from '@/lib/cumple'
 import { sanitizeAccount } from '@/lib/payment'
 import { ensureEveryoneInEvent } from '@/lib/cumple-server'
 import { getSavedAccount, mergeSavedAccount, nextPayerAccount, type SavedAccount } from '@/lib/saved-account'
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
       const amount = attending ? parseAmount(body.amount) : 0
       const extras = attending ? parseAmount(body.extrasAmount) : 0
       if (amount === null || extras === null) return err('Los montos deben ser números (por ejemplo 5.17)')
-      const description = attending ? text(body.description, 200) : ''
+      const description = attending ? text(body.description, 200) : DECLINED
       const fields = { attending, description, amount, extras_amount: extras }
 
       if (isUuid(body.orderId)) {

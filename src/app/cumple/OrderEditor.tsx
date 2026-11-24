@@ -40,7 +40,7 @@ function MoneyInput({ label, value, onChange }: { label: string; value: string; 
 export default function OrderEditor({ mode, eventId, ivaRate, orderId, userId, name, initial, submitLabel, onDone }: Props) {
   const router = useRouter()
   const [attending, setAttending] = useState(initial?.attending ?? true)
-  const [description, setDescription] = useState(initial?.description ?? '')
+  const [description, setDescription] = useState(initial?.attending === false ? '' : initial?.description ?? '')
   const [amount, setAmount] = useState(initial && initial.amount > 0 ? initial.amount.toFixed(2) : '')
   const [extras, setExtras] = useState(initial && initial.extras_amount > 0 ? initial.extras_amount.toFixed(2) : '')
   const [saving, setSaving] = useState(false)

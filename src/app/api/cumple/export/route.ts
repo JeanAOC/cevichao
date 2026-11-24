@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { requireOrganizer } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
-import { computeSummary, type EventOrderRow, type EventRow } from '@/lib/cumple'
+import { computeSummary, orderText, type EventOrderRow, type EventRow } from '@/lib/cumple'
 import { parseAccount } from '@/lib/payment'
 import { NextResponse } from 'next/server'
 
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
     const r = i + 2
     const row = ws.getRow(r)
     row.getCell(1).value = l.name
-    row.getCell(2).value = l.attending ? l.description : 'Esta vez no'
+    row.getCell(2).value = l.attending ? l.description : orderText(l)
     if (l.attending && l.amount > 0) row.getCell(3).value = l.amount
     if (l.attending && l.extras_amount > 0) row.getCell(4).value = l.extras_amount
     // Fórmulas vivas: si cambias Valor o Bebidas en Excel, todo se recalcula

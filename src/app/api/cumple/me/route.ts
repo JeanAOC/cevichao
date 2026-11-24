@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStaff } from '@/lib/auth'
-import { parseAmount } from '@/lib/cumple'
+import { DECLINED, parseAmount } from '@/lib/cumple'
 import { sanitizeAccount } from '@/lib/payment'
 import { mergeSavedAccount, type SavedAccount } from '@/lib/saved-account'
 import { NextResponse } from 'next/server'
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     const amount = attending ? parseAmount(body.amount) : 0
     const extras = attending ? parseAmount(body.extrasAmount) : 0
     if (amount === null || extras === null) return err('Los montos deben ser números (por ejemplo 5.17)')
-    const description = attending && typeof body.description === 'string' ? body.description.trim().slice(0, 200) : ''
+    const description = !attending ? DECLINED : typeof body.description === 'string' ? body.description.trim().slice(0, 200) : ''
     if (attending && !description) return err('Escribe qué vas a pedir')
 
     const fields = { attending, description, amount, extras_amount: extras }
